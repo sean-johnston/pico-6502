@@ -1,20 +1,39 @@
-if (TARGET tinyusb_device)
-    add_executable(6502emu
+# Set minimum required version of CMake
+cmake_minimum_required(VERSION 3.12)
+
+# Include build functions from Pico SDK
+include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+
+# Set name of project (as PROJECT_NAME) and C/C   standards
+project(pico-6502 C CXX ASM)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+
+# Creates a pico-sdk subdirectory in our project for the libraries
+pico_sdk_init()
+
+# Tell CMake where to find the executable source file
+add_executable(${PROJECT_NAME} 
     6502emu.c
-    )
+    hw_config.c
+    mcp-io.c
+)
 
-    # Pull in our pico_stdlib which aggregates commonly used features
-    target_link_libraries(6502emu pico_stdlib hardware_timer hardware_vreg)
+# Tell CMake where to find other source code
+add_subdirectory(lib/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
+#add_subdirectory(modules/pico-interfaces)
+#add_subdirectory(modules/pico-mcp23017)
 
-    # enable usb output, disable uart output
-    pico_enable_stdio_usb(6502emu 1)
-    pico_enable_stdio_uart(6502emu 0)
+# Create map/bin/hex/uf2 files
+pico_add_extra_outputs(${PROJECT_NAME})
 
-    # create map/bin/hex/uf2 file etc.
-    pico_add_extra_outputs(6502emu)
+# Link to pico_stdlib (gpio, time, etc. functions)
+target_link_libraries(${PROJECT_NAME} 
+    pico_stdlib
+    FatFs_SPI
+    hardware_i2c 
+)
 
-    # add url via pico_set_program_url
-    example_auto_set_url(6502emu)
-elseif(PICO_ON_DEVICE)
-    message(WARNING "not building hello_usb because TinyUSB submodule is not initialized in the SDK")
-endif()
+# Enable usb output, disable uart output
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+pico_enable_stdio_uart(${PROJECT_NAME} 1)
