@@ -36,6 +36,78 @@ This is a fork of the emulator that runs on a Raspberry Pi Pico, with additional
 
 ## Features
 
+### Configuration File
+
+The file contains the configuration for the device. You can set some things to Auto. If the file does not exist, the defaults
+are used:
+
+#### ROM-FILE=roms.txt (Default roms.txt)
+
+#### SERIAL-FLOW=0
+
+Serial Flow Control. Values are:
+
+* 0 = Auto (Default)
+* 1 = None
+* 2 = RTS/CTS
+* 3 = XON/XOFF
+
+#### LCD-INSTALLED=1
+
+LCD Installed
+
+* 0 = No (Default)
+* 1 = Yes
+
+#### IO-EMULATION=0
+
+I/O Emulation
+* 0 = Auto
+* 1 = None
+* 2 = VIA Full (Pico GPIO)
+* 3 = I/O Only (Pico GPIO)
+* 4 = VIA Full (Expansion Board)
+* 5 = I/O Only (Expansion Board)
+
+#### I/O Pins if Pico GPIO for VIA
+
+Specify whether the pin is a VIA pin or not for the Pi Pico. Values are:
+* VIA - VIA I/O pin
+* RESERVED - Pin is used by something else
+
+The VIA pins start with PA0, going up to PA7. The next pin is PB0, going up to 
+PB7. If there is more VIA pins specified than actual pins, they are ignored. If
+you don't have 16 VIA pins, the rest are not assigned to a pin on the Pi Pico.
+
+    GPIO-0=RESERVED  # Serial RX
+    GPIO-1=RESERVED  # Serial TX
+    GPIO-2=RESERVED  # Serial CTS
+    GPIO-3=RESEVERD  # Serial RTS
+    GPIO-4=VIA       # PA0
+    GPIO-5=VIA       # PA1
+    GPIO-6=VIA       # PA2
+    GPIO-7=VIA       # PA3
+    GPIO-8=RESERVED  # SD Card MISO
+    GPIO-9=RESERVED  # SD Card CS
+    GPIO-10=RESERVED # SD Card SCLK
+    GPIO-11=RESERVED # SD Card MOSI
+    GPIO-12=VIA      # PA4
+    GPIO-13=VIA      # PA5
+    GPIO-14=VIA      # PA6
+    GPIO-15=VIA      # PA7
+
+    GPIO-16=VIA      # PB0
+    GPIO-17=VIA      # PB1
+    GPIO-18=VIA      # PB2
+    GPIO-19=VIA      # PB3
+    GPIO-20=VIA      # PB4
+    GPIO-21=VIA      # PB5
+    GPIO-22=VIA      # PB6
+    GPIO-26=VIA      # PB7
+    GPIO-27=RESERVED # Unused
+    GPIO-28=RESERVED # Unused
+
+
 ### Loading ROMs from SD Card
 
 I added the SD Card to allow you to load the ROMs from the card, instead loading them using header files. Originally, the 
@@ -63,6 +135,7 @@ later in this document. The addresses are as follows:
 * $F004 - Character In - Get a character from the terminal
 * $F005 - File Load Data - This is used to stream the data in, based on the File Mode 
 * $F006 - Debug IO Enable - This enables debugging output for the I/O.
+* $F007 - LCD status. If 1, the LCD is installed. If 0, it is not. This is read from the configuration file.
 
 ### RS232 interface
 
