@@ -1027,7 +1027,7 @@ void write6502(uint16_t address, uint8_t value) {
                             value = value >> 1;
                         }
                     }
-                    printf("Port B: %08x %08x\n", gpio_dirs, gpio_outs);
+                    DISPLAY_DEBUG("Port B: %08x %08x\n", gpio_dirs, gpio_outs);
                     gpio_put_masked(gpio_dirs, gpio_outs);
 
                 } else if (via_location != 0 && address == (via_location + 1)) {
@@ -1038,7 +1038,7 @@ void write6502(uint16_t address, uint8_t value) {
                             value = value >> 1;
                         }
                     }
-                    printf("Port A: %08x %08x\n", gpio_dirs, gpio_outs);
+                    DISPLAY_DEBUG("Port A: %08x %08x\n", gpio_dirs, gpio_outs);
                     gpio_put_masked(gpio_dirs, gpio_outs);
 
                 } else if (via_location != 0 && address == (via_location + 2)) {
@@ -1584,7 +1584,7 @@ int read_config() {
                 }
                 //printf("%s: %s\n", gpio, data);
             }
-            printf("pico_pins "DWORD_TO_BINARY_PATTERN"\n", DWORD_TO_BINARY(pico_pins));
+            //printf("pico_pins "DWORD_TO_BINARY_PATTERN"\n", DWORD_TO_BINARY(pico_pins));
         }
 
         fr = f_close(&fil);
@@ -1708,7 +1708,7 @@ int main() {
             }
             if (cnt >= 32) break;
             pa[i] = (int)pow((double)2,(double)cnt);
-            printf("pa[%i]=%08x\n", i, pa[i]);
+            //printf("pa[%i]=%08x\n", i, pa[i]);
             cnt++;
             pins = pins >> 1;
         }
@@ -1720,7 +1720,7 @@ int main() {
             }
             if (cnt >= 32) break;
             pb[i] = (int)pow((double)2,(double)cnt);
-            printf("pb[%i]=%08x\n", i, pb[i]);
+            //printf("pb[%i]=%08x\n", i, pb[i]);
             cnt++;
             pins = pins >> 1;
         }
@@ -1777,7 +1777,6 @@ int main() {
 //#ifdef VIA_BASE_ADDRESS
 
     if (io_emulation == 2) {
-        printf("io_emulation 2\n");
         // setup VIA
         m6522_init(&via);
         m6522_reset(&via);
@@ -1789,7 +1788,6 @@ int main() {
         gpio_set_dir_all_bits(gpio_dirs);
     }
     else if (io_emulation == 3) {
-        printf("io_emulation 3\n");
         gpio_dirs = pico_a_mask|pico_b_mask;
         gpio_set_dir_all_bits(gpio_dirs);
     }
