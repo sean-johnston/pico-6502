@@ -107,6 +107,19 @@ you don't have 16 VIA pins, the rest are not assigned to a pin on the Pi Pico.
     GPIO-27=RESERVED # Unused
     GPIO-28=RESERVED # Unused
 
+#### Mapping characters
+
+You can map characters between 1 and 255 to characters sequences, such as Unicode characters or ANSI character sequences.
+
+To map a character, you an entry MAP_ followd by the hex number, an equal sign, and a comma delimited sequence of decimal
+bytes,
+
+Example: MAP_AO=27,91,50,74
+
+Will map the character AO to the ANSI clear screen sequence.
+
+An example of mapping the characters to Unicode for the Commodore characters set is in the config.txt in the SD card image. 
+You need to use the C64 Pro Mono font, in your terminal, to see the font.
 
 ### Loading ROMs from SD Card
 

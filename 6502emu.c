@@ -673,6 +673,13 @@ void cleanup_buffers(void) {
     first_byte = false;
 }
 
+char *mapped = NULL;
+unsigned char *char_map[256];
+
+char *get_mapped(unsigned char value) {
+    return char_map[value];
+}
+
 void write6502(uint16_t address, uint8_t value) {
 #ifdef TESTING
     mem[address] = value;
@@ -685,7 +692,12 @@ void write6502(uint16_t address, uint8_t value) {
 
     // Output a character
     if (address == chrout) {
-        printf("%c", value);
+        if (mapped = get_mapped(value)) {
+            printf("%s", mapped);
+        }
+        else {
+            printf("%c", value);
+        }
 
 
     // Setting the file mode
@@ -1440,12 +1452,23 @@ unsigned char *select_menu(unsigned short  *start, unsigned short *length, unsig
     // Return a pointer to the ROM data
     return data;
 }
+char *get_next_attr(FIL *fil, char *key, char *def) {
 
-char *get_attr(FIL *fil, char *key, char *def) {
+}
+#define ATTR_NORMAL        0
+#define ATTR_FIND_STARTING 1
+#define ATTR_FIND_NEXT     2
+
+char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key) {
     static char buf[255];
 
     // Go to start of the file
-    f_rewind(fil);
+    if (!(flags & ATTR_FIND_NEXT)) {
+        f_rewind(fil);
+    }
+    else {
+        flags |= ATTR_FIND_NEXT;
+    }
 
     int found = 0;
 
@@ -1476,11 +1499,23 @@ char *get_attr(FIL *fil, char *key, char *def) {
             p = strtok(NULL,"#");
             char *p_value = strdup(p);
             trim(p_value);
+            if (last_key != NULL) {
+                strcpy(last_key, p_key);
+            }
             //printf("p_key: %s key: %s\n", p_key, key);
-            if (strcmp(p_key,key) == 0) {
-                strcpy(buf, p_value);
-                found = 1;
-                break;
+            if (flags & ATTR_FIND_STARTING) {
+                if (strncmp(p_key,key,strlen(key)) == 0) {
+                    strcpy(buf, p_value);
+                    found = 1;
+                    break;
+                }
+            }
+            else {
+                if (strcmp(p_key,key) == 0) {
+                    strcpy(buf, p_value);
+                    found = 1;
+                    break;
+                }
             }
             free(line);
             free(p_key);
@@ -1530,7 +1565,6 @@ char *get_attr(FIL *fil, char *key, char *def) {
   ((dword) & 0x00000001 ? '1' : '0') 
 
 int read_config() {
-
     FRESULT fr;
     FATFS fs;
     FIL fil;
@@ -1548,26 +1582,26 @@ int read_config() {
         char *data = NULL;
         char gpio[10];
         char via[10];
-        data = get_attr(&fil,"ROM-FILE","roms.txt");
+        data = get_attr(&fil,"ROM-FILE","roms.txt",ATTR_NORMAL,0);
         strcpy(roms_txt, data);
         printf("ROM File: %s\n", data);
 
-        data = get_attr(&fil,"SERIAL-FLOW","0");
+        data = get_attr(&fil,"SERIAL-FLOW","0",ATTR_NORMAL,0);
         serial_flow = atoi(data);
         printf("SERIAL-FLOW: %s\n", data);
 
-        data = get_attr(&fil,"LCD-INSTALLED","0");
+        data = get_attr(&fil,"LCD-INSTALLED","0",ATTR_NORMAL,0);
         lcd_installed = atoi(data);
         printf("LCD-INSTALLED: %s\n", data);
 
-        data = get_attr(&fil,"IO-EMULATION","0");
+        data = get_attr(&fil,"IO-EMULATION","0",ATTR_NORMAL,0);
         printf("IO-EMULATION: %s\n", data);
         io_emulation = atoi(data);
         if (io_emulation == 2 || io_emulation == 3) {
             int count = 0;
             for (int i = 0; i < 29; i++) {
                 sprintf(gpio, "GPIO-%i", i);
-                data = get_attr(&fil,gpio,"RESERVED");
+                data = get_attr(&fil,gpio,"RESERVED",ATTR_NORMAL,0);
                 if (strcmp(data, "VIA") == 0) {
                     gpio_init(i);
                     gpio_pull_up(i);
@@ -1586,6 +1620,80 @@ int read_config() {
             }
             //printf("pico_pins "DWORD_TO_BINARY_PATTERN"\n", DWORD_TO_BINARY(pico_pins));
         }
+
+        // Read character mappings
+        printf("Loading Key Map\n");
+        char map_key[10];
+        unsigned char mapping[10];
+        unsigned char ch;
+
+        char key[20];
+
+        // Clear the character map
+        for (int i=0;i<256;i++) char_map[i] = NULL;
+
+        // Load key mappings
+        data = get_attr(&fil,"MAP_","", ATTR_FIND_STARTING, key);            
+        //printf("key: %s data: %s\n", key, data);
+        while (*data != 0) {
+            int cnt = 0;
+            char *x = data;
+            char *p = strtok(x,",");
+            while (p != NULL) {
+                strcpy(map_key, p);
+                trim(map_key);
+                ch = atoi(map_key);
+                //printf("-%i\n",(int)ch);
+                mapping[cnt] = ch;
+                cnt++;
+                p = strtok(NULL,",");
+            }
+            unsigned char *mp = (unsigned char *)malloc(cnt+1);
+            memcpy(mp, mapping, cnt);
+            mp[cnt] = 0;
+            char *endptr;
+            uint8_t num = strtol(key+4, &endptr, 16);
+            //printf("num: %02X str: %s\n",num,key+4);
+            char_map[num] = mp;
+
+
+
+            data = get_attr(&fil,"MAP_","", ATTR_FIND_NEXT | ATTR_FIND_STARTING, key);
+            //if (*data != 0)         
+            //    printf("key: %s data: %s\n", key, data);
+        }
+
+/*
+
+        for (int i = 0; i < 256; i++) {
+            sprintf(map_key, "%02X", i);
+            if (*data == 0) {
+                char_map[i] = NULL;
+                //printf("%s: Not found\n", map_key); 
+            }
+            else {
+                printf("%s: %s\n", map_key, data); 
+
+                int cnt = 0;
+                char *x = data;
+                char *p = strtok(x,",");
+                while (p != NULL) {
+                    strcpy(map_key, p);
+                    trim(map_key);
+                    ch = atoi(map_key);
+                    printf("-%i\n",(int)ch);
+                    mapping[cnt] = ch;
+                    cnt++;
+                    p = strtok(NULL,",");
+                }
+                unsigned char *mp = (unsigned char *)malloc(cnt+1);
+                memcpy(mp, mapping, cnt);
+                mp[cnt] = 0;
+                char_map[i] = mp;
+
+            }
+        }
+            */
 
         fr = f_close(&fil);
     }
