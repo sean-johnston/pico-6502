@@ -1661,7 +1661,7 @@ int read_config() {
         // Read character mappings
         printf("Loading Key Map\n");
         char map_key[10];
-        unsigned char mapping[10];
+        unsigned char mapping[50];
         unsigned char ch;
 
         char key[20];
@@ -1699,7 +1699,12 @@ int read_config() {
                     cnt = 0;
                     *data = 0x1b;
                     while (data[cnt] != 0) {
-                        mapping[cnt]=data[cnt];
+                        if (data[cnt] == '*') {
+                            mapping[cnt]=0x1b;
+                        }
+                        else {
+                            mapping[cnt]=data[cnt];
+                        }
                         cnt++;
                     }
                     mapping[cnt] = 0;
