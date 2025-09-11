@@ -111,12 +111,35 @@ you don't have 16 VIA pins, the rest are not assigned to a pin on the Pi Pico.
 
 You can map characters between 1 and 255 to characters sequences, such as Unicode characters or ANSI character sequences.
 
-To map a character, you an entry MAP_ followd by the hex number, an equal sign, and a comma delimited sequence of decimal
-bytes,
+There are three types of keys:
+* MAPH_ - Maps a character as a hexadecimal number
+* MAPD_ - Maps a character as a decimal name
+* MAP_  - Same as MAPH_ (For backward compatibility)
+
+To map a character, put the key, the hex or decimal depending on the key type, and sequence that will be used, when 
+displaying the character
 
 Example: MAP_AO=27,91,50,74
 
-Will map the character AO to the ANSI clear screen sequence.
+This Will map the hex character AO to the ANSI clear screen sequence.
+
+You can specify 3 different sequences:
+
+* Comma delimited sequences - This is a sequence of decimal or hex values for the sequence. If you put a '$' in front of
+the number, it will be treated as a hex number. An example is above.
+* Unicode character - This is the unicode value which will be translated to a UTF-8 sequences. To specify it, put a U as
+the first character.
+
+Example MAPD_200=UE0F0
+
+This will map the unicode E0F0 to the character 200 decimal.
+
+* ANSI escape sequence - If you put '\*' as the first character it will translate it as an ANSI escape sequence. The '\*'
+is translated as the escape character.
+
+Example MAPH_1C=*\[31m
+
+This will map the forground color red to hex 1C.
 
 An example of mapping the characters to Unicode for the Commodore characters set is in the config.txt in the SD card image. 
 You need to use the C64 Pro Mono font, in your terminal, to see the font.

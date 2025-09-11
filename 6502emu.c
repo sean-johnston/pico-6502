@@ -1564,6 +1564,43 @@ char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key) {
   ((dword) & 0x00000002 ? '1' : '0'), \
   ((dword) & 0x00000001 ? '1' : '0') 
 
+const char *MAP="MAP_";
+const char *MAPD="MAPD_";
+const char *MAPH="MAPH_";
+
+uint8_t* translate_utf_8(uint32_t value, int *cnt) {
+    static uint8_t bytes[8];
+    for (int i=0; i<8; i++) bytes[i] = 0;
+    int size = 0;
+    if (value < 0x100000000) size = 4;
+    if (value < 0x1000000) size = 3;
+    if (value < 0x10000) size = 2;
+    if (value < 0x100) size = 1;
+    int b = size;
+    *cnt = size + 1;
+    for(int i=0; i<size; i++) {
+        for (int j=0; j<6; j++) {
+            bytes[b] = (bytes[b] >> 1);
+            if (value & 1) bytes[b] |= 0x80;
+            value = value >> 1;
+        }
+        bytes[b] = (bytes[b] >> 2) | 0x80;
+        //printf("%i\n", bytes[b]);
+        b--;
+
+    }
+
+    for (int j=0; j<4; j++) {
+        bytes[b] = (bytes[b] >> 1);
+        if (value & 1) bytes[b] |= 0x80;
+        value = value >> 1;
+    }
+    bytes[b] = (bytes[b] >> 4) | 0b11100000;
+
+    //printf("%i %i %i %i %i %i %i %i\n", bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]);
+    return (uint8_t *)bytes;
+}
+
 int read_config() {
     FRESULT fr;
     FATFS fs;
@@ -1632,69 +1669,72 @@ int read_config() {
         // Clear the character map
         for (int i=0;i<256;i++) char_map[i] = NULL;
 
-        // Load key mappings
-        data = get_attr(&fil,"MAP_","", ATTR_FIND_STARTING, key);            
-        //printf("key: %s data: %s\n", key, data);
-        while (*data != 0) {
-            int cnt = 0;
-            char *x = data;
-            char *p = strtok(x,",");
-            while (p != NULL) {
-                strcpy(map_key, p);
-                trim(map_key);
-                ch = atoi(map_key);
-                //printf("-%i\n",(int)ch);
-                mapping[cnt] = ch;
-                cnt++;
-                p = strtok(NULL,",");
+        const char *mkey = NULL;
+        int offset = 0;
+        for (int m=0;m<3;m++) {
+            switch(m) {
+                case 0:
+                    mkey = MAP;
+                    break;
+                case 1:
+                    mkey = MAPD;
+                    break;
+                case 2:
+                    mkey = MAPH;
+                    break;
             }
-            unsigned char *mp = (unsigned char *)malloc(cnt+1);
-            memcpy(mp, mapping, cnt);
-            mp[cnt] = 0;
-            char *endptr;
-            uint8_t num = strtol(key+4, &endptr, 16);
-            //printf("num: %02X str: %s\n",num,key+4);
-            char_map[num] = mp;
-
-
-
-            data = get_attr(&fil,"MAP_","", ATTR_FIND_NEXT | ATTR_FIND_STARTING, key);
-            //if (*data != 0)         
-            //    printf("key: %s data: %s\n", key, data);
-        }
-
-/*
-
-        for (int i = 0; i < 256; i++) {
-            sprintf(map_key, "%02X", i);
-            if (*data == 0) {
-                char_map[i] = NULL;
-                //printf("%s: Not found\n", map_key); 
-            }
-            else {
-                printf("%s: %s\n", map_key, data); 
-
+            offset = strlen(mkey);
+            // Load key mappings
+            data = get_attr(&fil,(char *)mkey,"", ATTR_FIND_STARTING, key);            
+            //printf("key: %s data: %s\n", key, data);
+            while (*data != 0) {
+                char *endptr;
                 int cnt = 0;
                 char *x = data;
-                char *p = strtok(x,",");
-                while (p != NULL) {
-                    strcpy(map_key, p);
-                    trim(map_key);
-                    ch = atoi(map_key);
-                    printf("-%i\n",(int)ch);
-                    mapping[cnt] = ch;
-                    cnt++;
-                    p = strtok(NULL,",");
+                if (data[0] == 'U' || data[0] == 'u') {
+                    uint16_t num = strtol(data+1, &endptr, 16);
+                    memcpy(mapping,translate_utf_8(num, &cnt),8);
+                }
+                else if (data[0] == '*') {
+                    cnt = 0;
+                    *data = 0x1b;
+                    while (data[cnt] != 0) {
+                        mapping[cnt]=data[cnt];
+                        cnt++;
+                    }
+                    mapping[cnt] = 0;
+                }
+                else {
+                    char *p = strtok(x,",");
+                    while (p != NULL) {
+                        strcpy(map_key, p);
+                        trim(map_key);
+                        if (*map_key == '$') {
+                            ch = (int)strtol(map_key+1, &endptr, 16);
+                        }
+                        else {
+                            ch = atoi(map_key);
+                        }
+                        mapping[cnt] = ch;
+                        cnt++;
+                        p = strtok(NULL,",");
+                    }
                 }
                 unsigned char *mp = (unsigned char *)malloc(cnt+1);
                 memcpy(mp, mapping, cnt);
                 mp[cnt] = 0;
-                char_map[i] = mp;
+                uint8_t num;
+                if (m == 1) {
+                    num = strtol(key+offset, &endptr, 10);
+                }
+                else {
+                    num = strtol(key+offset, &endptr, 16);
+                }
+                char_map[num] = mp;
 
+                data = get_attr(&fil,(char *)mkey,"", ATTR_FIND_NEXT | ATTR_FIND_STARTING, key);
             }
         }
-            */
-
         fr = f_close(&fil);
     }
 }
