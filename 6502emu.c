@@ -1394,19 +1394,18 @@ int main() {
 
     void set_sd_card_pins(uint8_t spi, uint8_t miso, uint8_t sck, uint8_t mosi);
 
-
-    gpio_init(5);
-    gpio_set_dir(5   , GPIO_IN);
-    gpio_pull_up(5);
-    uint8_t pin_5 = gpio_get(5);
-    if (!pin_5) {
+    //gpio_init(5);
+    //gpio_set_dir(5   , GPIO_IN);
+    //gpio_pull_up(5);
+    //uint8_t pin_5 = gpio_get(5);
+    //if (!pin_5) {
         set_sd_card_pins(0, 4, 6, 7);
-        printf("SD card on pins 4, 6 and 7\n");
-    }
-    else {
-        set_sd_card_pins(1, 8, 10, 11);
-        printf("SD card on pins 8, 10 and 11\n");
-    }
+    //    printf("SD card on pins 4, 6 and 7\n");
+    //}
+    //else {
+    //    set_sd_card_pins(1, 8, 10, 11);
+    //    printf("SD card on pins 8, 10 and 11\n");
+    //}
     sd_init_driver();
 
     fr = f_mount(&fs, "0:", 1);
