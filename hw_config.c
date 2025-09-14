@@ -38,15 +38,7 @@ socket, which SPI it is driven by, and how it is wired.
 // Hardware Configuration of SPI "objects"
 // Note: multiple SD cards can be driven by one SPI if they use different slave
 // selects.
-static spi_t spis[] = {  // One for each SPI.
-    {
-        .hw_inst = spi1,  // SPI component
-        .miso_gpio = 8, // GPIO number (not pin number)
-        .mosi_gpio = 11,
-        .sck_gpio = 10,
-        .baud_rate = 2500 * 1000,  
-        //.baud_rate = 25 * 1000 * 1000, // Actual frequency: 20833333. 
-    }
+static spi_t spis[1] = {  // One for each SPI.
 };
 
 // Hardware Configuration of the SD Card "objects"
@@ -60,6 +52,21 @@ static sd_card_t sd_cards[] = {  // One for each SD card
         .card_detected_true = -1  // What the GPIO read returns when a card is
                                  // present. Use -1 if there is no card detect.
     }};
+
+void set_sd_card_pins(uint8_t spi, uint8_t miso, uint8_t sck, uint8_t mosi) {
+    spis[0].initialized = false;
+    if (spi == 0) {
+        spis[0].hw_inst = spi0;
+    }
+    else {
+        spis[0].hw_inst = spi1;
+    }
+    spis[0].miso_gpio = miso; // 8, // GPIO number (not pin number)
+    spis[0].sck_gpio =  sck; // 10,
+    spis[0].mosi_gpio = mosi; // 11,
+    spis[0].baud_rate = 2500 * 1000;
+}
+
 
 /* ********************************************************************** */
 size_t sd_get_num() { return count_of(sd_cards); }

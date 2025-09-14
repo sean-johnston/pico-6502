@@ -17,6 +17,7 @@ add_executable(${PROJECT_NAME}
     6502emu.c
     hw_config.c
     mcp-io.c
+    configure.c
 )
 
 # Tell CMake where to find other source code
