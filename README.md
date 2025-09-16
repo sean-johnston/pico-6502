@@ -81,31 +81,45 @@ you don't have 16 VIA pins, the rest are not assigned to a pin on the Pi Pico.
 
     GPIO-0=RESERVED  * Serial RX
     GPIO-1=RESERVED  * Serial TX
+    * --             * GND
     GPIO-2=RESERVED  * Serial CTS
     GPIO-3=RESERVED  * Serial RTS
     GPIO-4=RESERVED  * SD Card MISO
     GPIO-5=RESERVED  * SD Card CS
+    * --             * GND
     GPIO-6=RESERVED  * SD Card SCLK
     GPIO-7=RESERVED  * SD Card MOSI
     GPIO-8=VIA       * PA0
     GPIO-9=VIA       * PA1
+    * --             * GND
     GPIO-10=VIA      * PA2
     GPIO-11=VIA      * PA3
     GPIO-12=VIA      * PA4
     GPIO-13=VIA      * PA5
+    * --             * GND
     GPIO-14=VIA      * PA6
     GPIO-15=VIA      * PA7
-
+    *-------------------------------
     GPIO-16=VIA      * PB0
     GPIO-17=VIA      * PB1
+    * --             * GND
     GPIO-18=VIA      * PB2
     GPIO-19=VIA      * PB3
     GPIO-20=VIA      * PB4
     GPIO-21=VIA      * PB5
+    * --             * GND
     GPIO-22=VIA      * PB6
+    * --             * RUN
     GPIO-26=VIA      * PB7
     GPIO-27=RESERVED * Unused
+    * --             * GND
     GPIO-28=RESERVED * Unused
+    * --             * VREF
+    * --             * 3V3
+    * --             * EN
+    * --             * GND
+    * --             * VSYS
+    * --             * VBUS
 
 #### Mapping characters
 
@@ -118,25 +132,89 @@ Example: Mapping the 160 in hex would be OUT_MAP_$A0=, or in decimal OUT_MAP_160
 
 You can specify 3 different sequences:
 
-* Comma delimited sequences - This is a sequence of decimal or hex values for the sequence. If you put a '$' in front of
+##### Comma delimited sequences
+
+This is a sequence of decimal or hex values for the sequence. If you put a '$' in front of
 the number, it will be treated as a hex number. An example is above.
 
-* Unicode character - This is the unicode value which will be translated to a UTF-8 sequences. To specify it, put a U as
+##### Unicode character
+
+This is the unicode value which will be translated to a UTF-8 sequences. To specify it, put a U as
 the first character.
 
 Examples:
 * OUT_MAP_200=UE0F0 will map the unicode E0F0 to the decimal character 200 decimal.
 * OUT_MAP_$C8=UE0F0 will map the unicode E0F0 TO the hex character C8, which is 200 decimal.
 
-* ANSI escape sequence - If you put '^' as the first character it will translate it as an ANSI escape sequence. The '^'
+An example of mapping the characters to Unicode for the Commodore characters set is in the config.txt in the SD card image. 
+You need to use the C64 Pro Mono font, in your terminal, to see the font.
+
+##### ANSI escape sequence
+
+If you put '^' as the first character it will translate it as an ANSI escape sequence. The '^'
 is translated as the escape character.
 
-Example OUT_MAP_$1C=^\[31m
+Example:
+
+    OUT_MAP_$1C=^[31m
 
 This will map the forground color red to hex ASCII character 1C.
 
-An example of mapping the characters to Unicode for the Commodore characters set is in the config.txt in the SD card image. 
-You need to use the C64 Pro Mono font, in your terminal, to see the font.
+If you put '|' (pipe characters) in a ANSI sequence, this will be treated as a parameter in the ANSI sequence. For each
+pipe character, the character following the ANSI sequence will be used to fill the parameter.
+
+Example:
+
+If you have the sequence:
+
+    ^[|;|H
+
+and the two character following the sequence is:
+
+    10 and 20
+
+The sequence will be sent out as:
+
+    ^[10;20H
+
+#### Configuration Directives
+
+You can have directives in you configuration file. These are parsed before the actual reading 
+of configuration file. This get the file ready to read.
+
+The directives are as follows:
+
+* !DEFINE(key,value) - Defines a key/value pair that can be used for conditional or substitutions. You can currently have up to 50 of them.
+* !INCLUDE(filename) - Includes another file into the current file, at this place.
+* !IFDEF(key) - If the key is defined, the block between this directive and the !ELSE or !ENDIF will be included in the file.
+* !IFNDEF(key) - If the key is not defined, the block between this directive and the !ELSE or !ENDIF will be included in the file.
+* !IFEQ(key,value) - If the key is equal to the value, the block between this directive and the !ELSE or !ENDIF will be included in the file.
+* !IFNE(key,value) - If the key is not equal to the value, the block between this directive and the !ELSE or !ENDIF will be included in the file.
+* !ELSE - The text between this directive and the !ENDIF will be included, if the if condition is false.
+* !ENDIF - Terminates the if condition. Must have an equal number of if condition, to match the endif.
+
+You can nest if conditions.
+
+You can substitue values in the define, into the text. You can do this by putting the following in the text:
+
+    ${key-to-define}
+
+key-to-define - The key to a !DEFINE that you did earlier. If a value is not defined, an empty string is substituted.
+
+Example:
+
+If you did the following in early in the code:
+
+    !DEFINE(abc,substitution)
+
+And you did the following text
+
+    This is ${abc} text.
+
+The output would be:
+
+    This is substitution text.
+
 
 ### Loading ROMs from SD Card
 

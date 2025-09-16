@@ -5,26 +5,61 @@
 #include <stdio.h>
 #include <ctype.h>
 
-char *trim(char *s) {
-    char *ptr;
-    if (!s)
-        return NULL;   // handle NULL string
-    if (!*s)
-        return s;      // handle empty string
-    for (ptr = s + strlen(s) - 1; (ptr >= s) && isspace(*ptr); --ptr);
-    ptr[1] = '\0';
-    return s;
+char *trim(char *str)
+{
+    size_t len = 0;
+    char *frontp = str;
+    char *endp = NULL;
+    
+    if( str == NULL ) { return NULL; }
+    if( str[0] == '\0' ) { return str; }
+    
+    len = strlen(str);
+    endp = str + len;
+    
+    /* Move the front and back pointers to address the first non-whitespace
+     * characters from each end.
+     */
+    while( isspace((unsigned char) *frontp) ) { ++frontp; }
+    if( endp != frontp )
+    {
+        while( isspace((unsigned char) *(--endp)) && endp != frontp ) {}
+    }
+    
+    if(frontp != str && endp == frontp )
+    {
+        // Empty string
+        *(isspace((unsigned char) *endp) ? str : (endp + 1)) = '\0';
+    }
+    else if( str + len - 1 != endp )
+            *(endp + 1) = '\0';
+    
+    /* Shift the string so that it starts at str so that if it's dynamically
+     * allocated, we can still free it on the returned pointer.  Note the reuse
+     * of endp to mean the front of the string buffer now.
+     */
+    endp = str;
+    if( frontp != str )
+    {
+            while( *frontp ) { *endp++ = *frontp++; }
+            *endp = '\0';
+    }
+    
+    return str;
 }
 
-char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key) {
-    static char buf[255];
+int include_a_file(FIL *out_fp, char *file);
 
-    // Go to start of the file
+char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key) {
+    static char buf[256];
+
+    // If not find next
     if (!(flags & ATTR_FIND_NEXT)) {
+        // Go to start of the file
         f_rewind(fil);
     }
     else {
-        flags |= ATTR_FIND_NEXT;
+        //flags |= ATTR_FIND_NEXT;
     }
 
     int found = 0;
@@ -46,22 +81,35 @@ char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key) {
         trim(buf);
 
         // Ignore comments and empty lines
-        if (buf[0] != '*' && buf[0] != 0) {
+        if (buf[0] != COMMENT && buf[0] != 0) {
+            // Dupicate line
             char *line = strdup(buf);
-            //printf("Line: %s\n", line);
+
+            // Get the key
             char *p = strtok(line,"=");
+
+            // Dupicate key and trim spaces
             char *p_key = strdup(p);
             trim(p_key);
-            //printf("p_key: %s\n", p_key);
-            p = strtok(NULL,"#");
+
+            // Get value, up to a comment or end of line
+            p = strtok(NULL,"*");
+
+            // Duplicate value and trim spaces
             char *p_value = strdup(p);
             trim(p_value);
+            
+            // Copy the key to the last key, so it can be returned
             if (last_key != NULL) {
                 strcpy(last_key, p_key);
             }
-            //printf("p_key: %s key: %s\n", p_key, key);
-            if (flags & ATTR_FIND_STARTING) {
+
+            // If we are starting with the first key
+            if ((flags & ATTR_FIND_STARTING) || (flags & ATTR_FIND_NEXT)) {
+                // If the key is found
                 if (strncmp(p_key,key,strlen(key)) == 0) {
+                    // Store it in the buffer, set found flag
+                    // break out of the loop
                     strcpy(buf, p_value);
                     found = 1;
                     break;
@@ -154,13 +202,129 @@ uint8_t* translate_utf_8(uint32_t value, int *cnt) {
     return (uint8_t *)bytes;
 }
 
-int read_config(struct config_t* config) {
+void load_map(FIL *fil, char *mkey, uint8_t **map, uint8_t show_output) {
+    char map_key[10];
+    unsigned char mapping[50];
+    unsigned char ch;
+
+    char key[20];
+    char *data;
+
+    // Load key mappings
+    data = get_attr(fil,mkey,"", ATTR_FIND_STARTING, key);   
+
+    // If we have data
+    while (*data != 0) {
+        // Show output if the flag is set
+        if (show_output == 1) {
+            printf("Key: %s - Data: %s\n", key, data);
+        }
+        char *endptr;
+        int cnt = 0;
+        char *x = data;
+
+        // If it is unicode
+        if (data[0] == 'U' || data[0] == 'u') {
+            // Convert number from a hex number
+            uint16_t num = strtol(data+1, &endptr, 16);
+            // Translate the UTF-8
+            memcpy(mapping,translate_utf_8(num, &cnt),8);
+        }
+        // If it is an ANSI escape sequence
+        else if (data[0] == ESCAPE) {
+            cnt = 0;
+            *data = 0x1b;
+            while (data[cnt] != 0) {
+                // If we found an escape
+                if (data[cnt] == ESCAPE) {
+                    // Make it escape
+                    mapping[cnt]=0x1b;
+                }
+                else {
+                    // Any other character
+                    mapping[cnt]=data[cnt];
+                }
+                // Increment counter
+                cnt++;
+            }
+            // Terminate mapping
+            mapping[cnt] = 0;
+        }
+        else {
+            // If it is a comma delimited list
+            // Get first token
+            char *p = strtok(x,",");
+
+            // While we have tokens
+            while (p != NULL) {
+                // Copy the key and trim
+                strcpy(map_key, p);
+                trim(map_key);
+
+                // If token ends in dollar sign
+                if (*map_key == '$') {
+                    // Process as a hex
+                    ch = (int)strtol(map_key+1, &endptr, 16);
+                }
+                else {
+                    // Process as decimal
+                    ch = atoi(map_key);
+                }
+                // Store the value in the mapping
+                mapping[cnt] = ch;
+
+                // Increment counter
+                cnt++;
+
+                // Get next token
+                p = strtok(NULL,",");
+            }
+        }
+
+        // Allocate space for mapping
+        unsigned char *mp = (unsigned char *)malloc(cnt+1);
+        // Copy the data to the mapping, and terminate sequence
+        memcpy(mp, mapping, cnt);
+        mp[cnt] = 0;
+
+        // If key ends in dollar sign
+        uint8_t num;
+        // Process key as hex
+        if (*(key+strlen(mkey)) == '$') {
+            num = strtol(key+strlen(mkey)+1, &endptr, 16);
+        }
+        // Process key as decimal
+        else {
+            num = strtol(key+strlen(mkey), &endptr, 10);
+        }
+        // Store the mapping in the configuration
+        map[num] = mp;
+
+        // Get the next key
+        data = get_attr(fil,mkey, "", ATTR_FIND_NEXT, key);
+    }
+
+}
+
+struct define {
+    char *key;
+    char *value;
+};
+
+#define DEFINES_LENGTH 50
+
+struct define defines[DEFINES_LENGTH];
+
+int read_config(unsigned char * config_file, struct config_t* config) {
+    int result = 0;
+
     strcpy(config->roms_txt, "roms.txt");
     config->serial_flow   = 0;
     config->io_emulation  = 0;
     config->lcd_installed = 0;
     config->pico_pins     = 0x0000;
-    for (int i = 0; i < 256; i++) config->char_map[i] = NULL;
+    for (int i = 0; i < 256; i++) config->out_map[i] = NULL;
+    for (int i = 0; i < 256; i++) config->in_map[i] = NULL;
 
     FRESULT fr;
     FATFS fs;
@@ -168,10 +332,32 @@ int read_config(struct config_t* config) {
     FILINFO fno;
     DIR dp;
     int ret;
-    char filename[] = "config.txt";
+
+    char *tmp_file = "tmp_file.txt";
+
+    FIL out_fp;
+    fr = f_open(&out_fp, tmp_file, FA_WRITE | FA_CREATE_ALWAYS);
+    if (fr == FR_OK) {
+        result = include_a_file(&out_fp, config_file);
+        f_close(&out_fp);
+        if (result != 0) return result;
+    }
+    else {
+        printf("Build temporary file failed\n");
+        return 3;
+    }
+    for (int i = 0; i < DEFINES_LENGTH; i++) {
+        if (defines[i].key != NULL) {
+            printf("Define %i: %s=%s\n", i, defines[i].key, defines[i].value);
+            free(defines[i].key);
+            free(defines[i].value);
+            defines[i].key = NULL;
+            defines[i].value = NULL;
+        }
+    }
 
     // Open file for reading
-    fr = f_open(&fil, filename, FA_READ);
+    fr = f_open(&fil, tmp_file, FA_READ);
     if (fr != FR_OK) {
         printf("Could not open configuration file. Using defaults.\r\n");
     }
@@ -179,110 +365,78 @@ int read_config(struct config_t* config) {
         char *data = NULL;
         char gpio[10];
         char via[10];
+
+        // Get the flag to show output from the configuration
+        data = get_attr(&fil,"SHOW_OUTPUT","0",ATTR_NORMAL,0);
+        config->show_output = atoi(data);
+
+        // Get the ROMs file name
         data = get_attr(&fil,"ROM-FILE","roms.txt",ATTR_NORMAL,0);
         strcpy(config->roms_txt, data);
         printf("ROM File: %s\n", data);
 
+        // Get flow control mode
         data = get_attr(&fil,"SERIAL-FLOW","0",ATTR_NORMAL,0);
         config->serial_flow = atoi(data);
         printf("SERIAL-FLOW: %s\n", data);
 
+        // Get if LCD is installed
         data = get_attr(&fil,"LCD-INSTALLED","0",ATTR_NORMAL,0);
         config->lcd_installed = atoi(data);
         printf("LCD-INSTALLED: %s\n", data);
 
+        // Get the I/O emulation mode
         data = get_attr(&fil,"IO-EMULATION","0",ATTR_NORMAL,0);
         printf("IO-EMULATION: %s\n", data);
         config->io_emulation = atoi(data);
-        if (config->io_emulation == 2 || config->io_emulation == 3) {
+
+        // If emulation uses Pico pins
+        if (config->io_emulation == IO_EMULATION_FULL_PICO || config->io_emulation == IO_EMULATION_BASIC_PICO) {
             int count = 0;
+
+            // Iterate through the GPIO pins
             for (int i = 0; i < 29; i++) {
+
+                // Get GPIO pin
                 sprintf(gpio, "GPIO-%i", i);
                 data = get_attr(&fil,gpio,"RESERVED",ATTR_NORMAL,0);
+
+                // If it is VIA
                 if (strcmp(data, "VIA") == 0) {
+                    // Setup tht pin and assign it to a port and number
                     gpio_init(i);
                     gpio_pull_up(i);
 
                     if (count < 8) {
+                        // Port A
                         sprintf(via, "PA%i", count);
                     }
                     else {
+                        // Port B
                         sprintf(via, "PB%i", count-8);
                     }
                     printf("%s: %s\n", gpio, via);
+
+                    // OR the pin to the pico pins
                     config->pico_pins |= (int)pow((double)2,(double)i);
+
+                    // Increment the count
                     count++;
                 }
-                //printf("%s: %s\n", gpio, data);
             }
-            //printf("pico_pins "DWORD_TO_BINARY_PATTERN"\n", DWORD_TO_BINARY(pico_pins));
         }
 
         // Read character mappings
         printf("Loading Key Map\n");
-        char map_key[10];
-        unsigned char mapping[50];
-        unsigned char ch;
 
-        char key[20];
+        load_map(&fil, "OUT_MAP_", config->out_map, config->show_output);
 
-        // Load key mappings
-        data = get_attr(&fil,"OUT_MAP_","", ATTR_FIND_STARTING, key);   
-        //printf("key: %s data: %s\n", key, data);
-        while (*data != 0) {
-            char *endptr;
-            int cnt = 0;
-            char *x = data;
-            if (data[0] == 'U' || data[0] == 'u') {
-                uint16_t num = strtol(data+1, &endptr, 16);
-                memcpy(mapping,translate_utf_8(num, &cnt),8);
-            }
-            else if (data[0] == '^') {
-                cnt = 0;
-                *data = 0x1b;
-                while (data[cnt] != 0) {
-                    if (data[cnt] == '^') {
-                        mapping[cnt]=0x1b;
-                    }
-                    else {
-                        mapping[cnt]=data[cnt];
-                    }
-                    cnt++;
-                }
-                mapping[cnt] = 0;
-            }
-            else {
-                char *p = strtok(x,",");
-                while (p != NULL) {
-                    strcpy(map_key, p);
-                    trim(map_key);
-                    if (*map_key == '$') {
-                        ch = (int)strtol(map_key+1, &endptr, 16);
-                    }
-                    else {
-                        ch = atoi(map_key);
-                    }
-                    mapping[cnt] = ch;
-                    cnt++;
-                    p = strtok(NULL,",");
-                }
-            }
-            unsigned char *mp = (unsigned char *)malloc(cnt+1);
-            memcpy(mp, mapping, cnt);
-            mp[cnt] = 0;
-            uint8_t num;
-            if (*(key+8) == '$') {
-                num = strtol(key+9, &endptr, 16);
-            }
-            else {
-                num = strtol(key+8, &endptr, 10);
-            }
-            config->char_map[num] = mp;
+        load_map(&fil, "IN_MAP_", config->in_map, config->show_output);
 
-            data = get_attr(&fil,"OUT_MAP_","", ATTR_FIND_NEXT | ATTR_FIND_STARTING, key);
-        }
+        // Close the configuration file
         fr = f_close(&fil);
     }
+    return 0;
 }
 
 unsigned short convert_to_short_int(char *number) {
@@ -321,23 +475,33 @@ unsigned char *select_menu(struct config_t* config, unsigned short  *start, unsi
 
         // Read the roms.txt file.
         int count = 0;
+
+        // Get file line by line
         while (f_gets(buf, sizeof(buf), &fil)) {
             
+            // Remove the LF
             if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n') {
                 buf[strlen(buf)-1] = 0;
             }
+
+            // Remove the CR
             if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\r') {
                 buf[strlen(buf)-1] = 0;
             }
 
+            // Remove extra spaces
             trim(buf);
 
-            if (buf[0] != '*' && buf[0] != 0) {
+            // If not comment or empty line
+            if (buf[0] != COMMENT && buf[0] != 0) {
+                // Add ROM to the list
                 roms[count] = strdup(buf);
                 count++;
                 if (count == strlen(menu_items)) break;
             }
         }
+
+        // Terminate the list
         roms[count] = NULL;
 
         // Close file
@@ -439,4 +603,370 @@ unsigned char *select_menu(struct config_t* config, unsigned short  *start, unsi
 
     // Return a pointer to the ROM data
     return data;
+}
+
+unsigned char *config_menu(void) {
+    FRESULT fr;
+    FATFS fs;
+    FIL fil;
+    FILINFO fno;
+    DIR dp;
+    int ret;
+    char buf[255];
+
+    unsigned char * data = NULL;
+
+    char *menu_items = "123456789ABCDEFGHIJKLMNOPQRSTUVWYZ";
+
+#define CONFIG_COUNT 36
+
+    char *config_file;
+    // Open file for reading
+    fr = f_open(&fil, "config-list.txt", FA_READ);
+    if (fr != FR_OK) {
+        printf("ERROR: Could not open file config-list.txt\r\n");
+    }
+    else {
+        char *configs[36];
+        configs[0] = NULL;
+
+        // Read the roms.txt file.
+        int count = 0;
+
+        // Get file line by line
+        while (f_gets(buf, sizeof(buf), &fil)) {
+            
+            // Remove the LF
+            if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n') {
+                buf[strlen(buf)-1] = 0;
+            }
+
+            // Remove the CR
+            if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\r') {
+                buf[strlen(buf)-1] = 0;
+            }
+
+            // Remove extra spaces
+            trim(buf);
+
+            // If not comment or empty line
+            if (buf[0] != COMMENT && buf[0] != 0) {
+                // Add ROM to the list
+                configs[count] = strdup(buf);
+                count++;
+                if (count == strlen(menu_items)) break;
+            }
+        }
+
+        // Terminate the list
+        configs[count] = NULL;
+
+        // Close file
+        fr = f_close(&fil);
+
+        // Output menu
+        count = 0;
+        while (configs[count] != NULL) {
+            char *tmp = strdup(configs[count]);
+            char *p = strtok(tmp,",");
+            printf("%c - %s\n", menu_items[count], p);
+            free(tmp);
+            count++;
+        }
+
+        // Select menu option
+        printf("Select from the menu: \n");
+        int i = 0;
+        while (true) {
+            buf[0] = getchar();
+            for (i=0; i < count; i++) {
+                if (toupper(buf[0]) == menu_items[i]) {
+                    break;
+                }
+            }
+            if (i < count) break;
+        }
+
+        // Get data from the selected menu item
+        char *p = strtok(configs[i],",");
+        p = strtok(NULL, ",");
+        config_file = strdup(p);
+
+        // free menu
+        count = 0;
+        while (configs[count] != NULL) {
+            free(configs[count]);
+            count++;
+        }
+    }
+
+    // Return a pointer to the ROM data
+    return config_file;
+}
+
+// Output the sequence in hex
+void print_seq(char *seq) {
+    for (int i=0; i<strlen(seq); i++) {
+        printf("%02x ", seq[i]);
+    }
+}
+
+char buf[255];
+
+int if_level = 0;
+int output_code = 1;
+int hide_level = 0;
+int else_count = 0;
+
+char *find_define(char *p_key) {
+    for (int i = 0; i < DEFINES_LENGTH; i++) {
+        if (defines[i].key != NULL) {
+            if (strcmp(defines[i].key, p_key) == 0) {
+                return defines[i].value;
+            }
+        }
+    }
+    return NULL;
+}
+
+void strreplace(char *string, uint8_t start, uint8_t end,  const char *replaceWith) {
+    char *end_str = strdup(string + end + 1);
+    buf[start] = 0;
+    strcat(buf, replaceWith);
+    strcat(buf, end_str);
+    free(end_str);
+}
+
+
+int include_a_file(FIL *out_fp, char *file) {
+    FRESULT fr;
+    int result = 0;
+    FIL in_fp;
+    printf("Opening configuration file: %s\n", file);
+    fr = f_open(&in_fp,file, FA_READ);
+    if (fr == FR_OK) {
+        while(f_gets(buf, sizeof(buf), &in_fp)) {
+            // Remove the LF
+            if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n') {
+                buf[strlen(buf)-1] = 0;
+            }
+
+            // Remove the CR
+            if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\r') {
+                buf[strlen(buf)-1] = 0;
+            }
+
+            // Remove extra spaces
+            trim(buf);
+
+            char *replace_str;
+            if ((replace_str = strstr(buf, "${")) != NULL) {
+                    char *replace_end = strtok(replace_str,"}");
+                    char *key = strdup(replace_str + 2);
+                    uint8_t start = replace_str - buf;
+                    uint8_t end = strlen(buf);
+                    replace_end[strlen(replace_end)] = '}';
+                    
+                    char *key_value = find_define(key);
+                    if (key_value) {
+                        strreplace(buf, start, end, key_value);
+                    }
+                    else {
+                        strreplace(buf, start, end, "");
+                    }
+                    free(key);
+                    
+            }
+
+            if (buf[0] == '!') {
+                if (strncmp(buf, "!INCLUDE(", 9) == 0) {
+                    char *include_file = strdup(buf + 9);
+                    if (include_file[strlen(include_file)-1] == ')') {
+                        include_file[strlen(include_file)-1] = 0;
+                    }
+                    //printf("Include: %s\n", include_file);
+                    include_a_file(out_fp, include_file);
+                    free(include_file);
+                }
+                else if (strncmp(buf, "!DEFINE(", 8) == 0) {
+                    char *define_value = strdup(buf + 8);
+
+                    char *p = strtok(define_value,",");
+
+                    // Dupicate key and trim spaces
+                    char *p_key = strdup(p);
+                    trim(p_key);
+
+                    // Get value, up to a comment or end of line
+                    p = strtok(NULL,")");
+
+                    // Duplicate value and trim spaces
+                    char *p_value = strdup(p);
+                    trim(p_value);
+                    
+                    int8_t cnt = 0;
+                    while (defines[cnt].key != NULL) {
+                        if (cnt == DEFINES_LENGTH) {
+                            printf("Too many defines. Limit is %i\n", DEFINES_LENGTH);
+                            free(p_key);
+                            free(p_value);
+                            break;
+                        }
+                        cnt++;
+                    }
+
+                    if (cnt < DEFINES_LENGTH) {
+                        defines[cnt].key = p_key;
+                        defines[cnt].value = p_value;
+                    }
+                    free(define_value);
+                }
+                else if (strncmp(buf, "!IFDEF(", 6) == 0) {
+                    if (output_code) {
+                        char *value = strdup(buf + 7);
+                        char *p = strtok(value,")");
+
+                        // Dupicate key and trim spaces
+                        char *p_key = strdup(p);
+                        trim(p_key);
+
+                        char *key = find_define(p_key);
+                        if (key) {
+                            output_code = 1;
+                        }
+                        else {
+                            output_code = 0;
+                            hide_level = if_level + 1;
+                        }
+                        free(value);
+                        free(p_key);
+                    }
+                    if_level++;
+                }
+                else if (strncmp(buf, "!IFNDEF(", 8) == 0) {
+                    if (output_code) {
+                        char *value = strdup(buf + 8);
+                        char *p = strtok(value,")");
+
+                        // Dupicate key and trim spaces
+                        char *p_key = strdup(p);
+                        trim(p_key);
+
+                        char *key = find_define(p_key);
+                        if (key) {
+                            output_code = 0;
+                            hide_level = if_level + 1;
+                        }
+                        else {
+                            output_code = 1;
+                        }
+                        free(value);
+                        free(p_key);
+
+                    }
+                    if_level++;
+                }
+                else if (strncmp(buf, "!IFEQ(", 6) == 0) {
+                    if (output_code) {
+                        char *value = strdup(buf + 6);
+                        char *p = strtok(value,",");
+
+                        // Dupicate key and trim spaces
+                        char *p_key = strdup(p);
+                        trim(p_key);
+
+                        // Get value, up to a comment or end of line
+                        p = strtok(NULL,")");
+
+                        // Duplicate value and trim spaces
+                        char *p_value = strdup(p);
+                        trim(p_value);
+
+
+                        char *key_value = find_define(p_key);
+                        if (key_value && strcmp(key_value, p_value) == 0) {
+                            output_code = 1;
+                        }
+                        else {
+                            output_code = 0;
+                            hide_level = if_level + 1;
+                        }
+                        free(value);
+                        free(p_key);
+                        free(p_value);
+                    }
+                    if_level++;
+                }
+                else if (strncmp(buf, "!IFNE(", 6) == 0) {
+                    if (output_code) {
+                        char *value = strdup(buf + 6);
+                        char *p = strtok(value,",");
+
+                        // Dupicate key and trim spaces
+                        char *p_key = strdup(p);
+                        trim(p_key);
+
+                        // Get value, up to a comment or end of line
+                        p = strtok(NULL,")");
+
+                        // Duplicate value and trim spaces
+                        char *p_value = strdup(p);
+                        trim(p_value);
+
+                        char *key_value = find_define(p_key);
+                        if (key_value && strcmp(key_value, p_value) != 0) {
+                            output_code = 1;
+                        }
+                        else {
+                            output_code = 0;
+                            hide_level = if_level + 1;
+                        }
+                        free(value);
+                        free(p_key);
+                        free(p_value);
+                    }
+                    if_level++;
+                }
+                else if (strncmp(buf, "!ELSE", 5) == 0) {
+                    if (output_code == 0 && hide_level == if_level) {
+                        output_code = 1;
+                    }
+                    else if (output_code == 1) {
+                        hide_level = if_level;
+                        output_code = 0;
+                    }
+                }
+                else if (strncmp(buf, "!ENDIF", 6) == 0) {
+                    if (output_code == 0 && hide_level == if_level) {
+                        output_code = 1;
+                    }
+                    if_level--;
+                }
+                else {
+                    printf("Invalid directive %s\n", buf);
+                }
+            }
+            else {
+                if (output_code) {
+                    //printf("%s\n",buf);
+                    f_printf(out_fp, "%s\n", buf);
+                }
+            }
+        }
+
+        f_close(&in_fp);
+    }
+    else {
+        printf("Could not open file: %s\n",file);
+        result = 1;
+    }
+    if (if_level < 0) {
+        printf("Too many !ENDIF directives.\n");
+        result = 1;
+    }
+    if (if_level > 0) {
+        printf("Missing !ENDIF directive.\n");
+        result = 2;
+    }
+    return result;
 }

@@ -61,11 +61,6 @@ unsigned short via_location = 0;
 unsigned short io_location = 0;
 unsigned char *rom = NULL;
 
-//char roms_txt[20];
-//int serial_flow = 0;
-//int io_emulation = 0;
-//int lcd_installed = 0;
-//uint32_t pico_pins = 0x0000;
 uint32_t pa[8];
 uint32_t pb[8];
 uint32_t pico_b_mask = 0;
@@ -216,24 +211,12 @@ int init_io(uint gpio_irq) {
     return result == 0?1:0;
 }
 
-// {5b}{31}{7e}~ Home
-// {5b}{32}{7e}~ Insert
-// {5b}{33}{7e}~ Del
-// {5b}{34}{7e}~ End
-// {5b}{35}{7e}~ Page Up
-// {5b}{36}{7e}~ Page Down
-
-// {5b}{41} - Cursor Up
-// {5b}{42} - Cursor Down
-// {5b}{43} - Cursor Right
-// {5b}{44} - Cursor Left
-
 int8_t crsr = false;
 
 uint16_t start_buffer = 0;
 uint16_t end_buffer = 0;
 uint16_t buffer_count = 0;
-int8_t input_buffer[1024];
+int8_t input_buffer[4096];
 
 //#define OLD_KEY
 
@@ -246,10 +229,16 @@ void poll_keypress(uint32_t timeout) {
     input_buffer[end_buffer] = (uint8_t)ch;
     end_buffer++;
     buffer_count++;
+
+    // RTS/CTS
     if (xon_xoff == 0 && buffer_count >= sizeof(input_buffer) - 255) gpio_put(CTS_PIN, 1);
-    if (xon_xoff == 1 && buffer_count >= sizeof(input_buffer) - 255) printf("%c",0x13);//printf("%c", 0x13); // Ctrl+S
-//    if (buffer_count >= sizeof(input_buffer) - 255) printf("%c",0x13);//printf("%c", 0x13); // Ctrl+S
+
+    // XON/XOFF
+    if (xon_xoff == 1 && buffer_count >= sizeof(input_buffer) - 255) printf("%c",0x13);
+
+    // Buffer overflow. Only get here if flow control is turned off, on terminal
     if (buffer_count >= sizeof(input_buffer)) printf("Overflow!!!!\n");
+
     if (end_buffer >= sizeof(input_buffer)) end_buffer = 0;
 #endif
 }
@@ -266,155 +255,53 @@ uint8_t get_key(void) {
     uint8_t ch = input_buffer[start_buffer];
     start_buffer++;
     buffer_count--;
+
+    // RTS/CTS
     if (xon_xoff == 0 && buffer_count < 255) gpio_put(CTS_PIN, 0);
-    if (xon_xoff == 1 && buffer_count < 255) printf("%c",0x11); // printf("%c",0x11); // Ctrl+Q
-    //if (buffer_count < 255) printf("%c",0x11); // printf("%c",0x11); // Ctrl+Q
+
+    // XON/XOFF
+    if (xon_xoff == 1 && buffer_count < 255) printf("%c",0x11);
+
     if (start_buffer >= sizeof(input_buffer)) start_buffer = 0;
     poll_keypress(100);
     return ch;
 #endif
 }
 
+uint8_t seq[10];
+
+struct config_t *g_config = NULL;
+
+uint8_t process_esc(void) {
+    uint8_t cnt = 0;
+    uint8_t ch = 0x1b;
+    while (ch != 0) {
+        seq[cnt++]=ch;
+        ch = (uint8_t)get_key();
+    }
+    seq[cnt++] = 0;
+    for (int i=0; i < 256; i++) {
+        //printf("%i\n", i);
+        if (g_config->in_map[i] != 0) {
+            //print_seq(seq);
+            if (strcmp(g_config->in_map[i],seq) == 0) {
+                return i;
+            }
+        }
+    }
+    return 0;
+}
+
 uint8_t read6502(uint16_t address) {
 #ifndef TESTING
+    // TODO: Make this configurable
+
     // Get a character from input
     if (address == chrin) {
         int16_t ch = get_key(); // getchar_timeout_us(100);
-        if (ch == 0) {
-           return 0;
-        }
+
         if (ch == 0x1b) { // Escape
-            // Check if key follows
-            ch = get_key(); // getchar_timeout_us(100);
-            if (ch == 0) {
-                return 0;
-            }
-            if (ch == 0x5b) { // Special key
-                ch = get_key(); // getchar_timeout_us(100);
-                if (ch == 0) {
-                    return 0;
-                }
-
-                switch (ch) {
-                    case 0x31: // Home
-                        ch = 0x13;
-                        crsr = false;
-                        break;
-                    case 0x32: // Insert
-                        ch = 0x94;
-                        crsr = false;
-                        break;
-                    case 0x33: // Del
-                        ch = 0x7f;
-                        crsr = false;
-                        break;
-                    case 0x34: // End
-                        ch = 0x93;
-                        crsr = false;
-                        break;
-                    case 0x35: // Page Up
-                        ch = 0x00;
-                        crsr = false;
-                        break;
-                    case 0x36: // Page Down
-                        ch = 0x00;
-                        crsr = false;
-                        break;
-
-                    case 0x41: // Cursor Up
-                        ch = 0; //0x91;
-                        crsr = true;
-                        break;
-                    case 0x42: // Cursor Down
-                        ch = 0; //0x9d;
-                        crsr = true;
-                        break;
-                    case 0x43: // Cursor Right
-                        ch = 0x1d;
-                        crsr = true;
-                        break;
-                    case 0x44: // Cursor Left
-                        ch = 0x9d;
-                        crsr = true;
-                        break;
-                };
-
-                if (!crsr) {
-                    uint16_t ch2 = get_key(); // getchar_timeout_us(100);
-                    if (ch2 == 0) {
-                        return 0;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x31) { // F1
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x31) { // F1
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x31) { // F1
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x32) { // F2
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x33) { // F3
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x34) { // F4
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x35) { // F5
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x36) { // F6
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x37) { // F7
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x38) { // F8
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x31 && ch2 == 0x39) { // F9
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x33 && ch2 == 0x31) { // F10
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-
-                    if (ch = 0x32 && ch2 == 0x33) { // F11
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x00;
-                    }
-                    if (ch = 0x32 && ch2 == 0x34) { // F12
-                        uint16_t ch3 = get_key(); // getchar_timeout_us(100);
-                        ch == 0x94;
-                    }
-                }
-            }
+            ch = process_esc();
         }
         return (uint8_t) ch & 0xFF;
 
@@ -670,9 +557,28 @@ void cleanup_buffers(void) {
 }
 
 char *mapped = NULL;
+int param_cnt = 0;
+int params_read = 0;
+uint8_t params[10];
+char sequence_buffer[30];
 
+// Get number of character in sequence
+int get_params(char *seq) {
+    // Start at zero
+    int param_count = 0;
+
+    // While we have character
+    while(*seq != 0) {
+        // If pipe character increment count
+        if (*seq == PARAMETER) param_count++;
+        seq++;
+    }
+    return param_count;
+}
+
+// Get the mapped sequence for the value
 char *get_mapped(unsigned char value) {
-    return config.char_map[value];
+    return config.out_map[value];
 }
 
 void write6502(uint16_t address, uint8_t value) {
@@ -687,13 +593,70 @@ void write6502(uint16_t address, uint8_t value) {
 
     // Output a character
     if (address == chrout) {
-        if (mapped = get_mapped(value)) {
-            printf("%s", mapped);
+        // If we have a sequence with parameters
+        if (param_cnt > 0) {
+            // Store parameter for later use
+            params[params_read] = value;
+            params_read++;
+
+            // If we have all the parameters
+            if (params_read == param_cnt) {
+                // Process sequence
+                char buffer[50]; // Buffer for final string
+                char format[50]; // Buffer for format
+                *format = 0;
+                int format_cnt = 0; // Number of parameters
+                for (int i=0; i<strlen(mapped); i++) {
+                    // If we have a pipe character (parameter)
+                    if (mapped[i] == PARAMETER) {
+                        // Added a parameter to the format
+                        format[format_cnt++] = '%';
+                        format[format_cnt++] = 'i';
+                    }
+                    else {
+                        // Added a character from the mapped sequence
+                        format[format_cnt++] = mapped[i];
+                    } 
+                }
+                format[format_cnt] = 0;
+                // Produce the final sequence
+                sprintf(buffer, format, params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9]);
+                // Print the sequence
+                //printf("mapped: ");
+                //print_seq(mapped);
+                //printf("  format: ");
+                //print_seq(format);
+                //printf("  buffer: ");
+                //print_seq(buffer);
+                //printf("\n");
+                printf("%s", buffer);
+
+                // Reset the parameter count and mapped variables
+                param_cnt = 0;
+                mapped = NULL;
+            }
         }
         else {
-            printf("%c", value);
+            // If we have a mapped parameter
+            if (mapped = get_mapped(value)) {
+                // Get number of parameters
+                param_cnt = get_params(mapped);
+                // If there are parameter
+                if (param_cnt > 0) {
+                    // Set the read count and clear the parameters
+                    params_read = 0;
+                    for (int i=0; i<sizeof(params); i++) params[i] = 0;
+                }
+                else {
+                    // Just output the mapped character
+                    printf("%s", mapped);
+                }
+            }
+            else {
+                // Not mapped character
+                printf("%c", value);
+            }
         }
-
 
     // Setting the file mode
     } else if (address == file_mode) {
@@ -1414,9 +1377,14 @@ int main() {
         while(true) {}
     }
     else {
+        unsigned char *config_file = config_menu();
+        
         printf("\n");
+        g_config = &config;
         printf("Reading Configuration ...\n");
-        read_config(&config);
+        if (read_config(config_file, &config) != 0) {
+            printf("Error in reading configuration file.\n");
+        }
 
         setup_config();    
 

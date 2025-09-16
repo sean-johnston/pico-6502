@@ -11,7 +11,9 @@ struct config_t {
     int io_emulation;
     int lcd_installed;
     uint32_t pico_pins;
-    unsigned char *char_map[256];
+    uint8_t *out_map[256];
+    uint8_t *in_map[256];
+    uint8_t show_output;
 };
 
 #define DWORD_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c"
@@ -61,9 +63,14 @@ struct config_t {
 #define FLOW_CONTROL_RTS_CTS    2
 #define FLOW_CONTROL_XON_XOFF   3
 
+#define COMMENT   '*'
+#define PARAMETER '|'
+#define ESCAPE    '^'
 
 char *trim(char *s);
 char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key);
 uint8_t* translate_utf_8(uint32_t value, int *cnt);
-int read_config(struct config_t* config);
+int read_config(unsigned char *config_file, struct config_t* config);
 unsigned char *select_menu(struct config_t* config, unsigned short  *start, unsigned short *length, unsigned short *via, unsigned short *io);
+unsigned char *config_menu(void);
+void print_seq(char *seq);
