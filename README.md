@@ -184,7 +184,7 @@ of configuration file. This get the file ready to read.
 
 The directives are as follows:
 
-* !DEFINE(key,value) - Defines a key/value pair that can be used for conditional or substitutions. You can currently have up to 50 of them.
+* !DEFINE(key,value) - Defines a key/value pair that can be used for conditional or substitutions.
 * !INCLUDE(filename) - Includes another file into the current file, at this place.
 * !IFDEF(key) - If the key is defined, the block between this directive and the !ELSE or !ENDIF will be included in the file.
 * !IFNDEF(key) - If the key is not defined, the block between this directive and the !ELSE or !ENDIF will be included in the file.
@@ -195,7 +195,7 @@ The directives are as follows:
 
 You can nest if conditions.
 
-You can substitue values in the define, into the text. You can do this by putting the following in the text:
+You can substitute values in the define, into the text. You can do this by putting the following in the text:
 
     ${key-to-define}
 

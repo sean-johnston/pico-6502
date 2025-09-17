@@ -6,6 +6,7 @@
 * 
 * OUT_MAP_<ascii>=<comma-delimited-seq|ansi-sequence|unicode>
 *
+* This uses unicode for the PET-ME font
 ********************************
 OUT_MAP_$90=^[30m   * Black         30
 OUT_MAP_$1C=^[31m   * Red           31

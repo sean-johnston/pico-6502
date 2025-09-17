@@ -309,11 +309,53 @@ void load_map(FIL *fil, char *mkey, uint8_t **map, uint8_t show_output) {
 struct define {
     char *key;
     char *value;
+    struct define *next;
 };
 
-#define DEFINES_LENGTH 50
+struct define *defines = NULL; // [DEFINES_LENGTH];
 
-struct define defines[DEFINES_LENGTH];
+void add_define(char *key, char *value) {
+    if (defines == NULL) {
+        printf("define: empty\n");
+        defines = (struct define *)malloc(sizeof(struct define));
+        defines->key = key;
+        defines->value = value;
+        defines->next = NULL;
+    }
+    else {
+        printf("define: next\n");
+        struct define *next = defines;
+        defines = (struct define *)malloc(sizeof(struct define));
+        defines->key = key;
+        defines->value = value;
+        defines->next = next;
+    }
+}
+
+char *find_define(char *p_key) {
+    struct define *next = defines;
+    if (next != NULL) {
+        while (next->next != NULL) {
+            if (strcmp(p_key, next->key) == 0) {
+                return next->value;
+            }
+            next = next->next;
+        }
+    }
+    return next->value;
+}
+
+void free_defines(void) {
+    struct define *next = NULL;
+    while (defines != NULL) {
+        next = defines->next;
+        printf("Define: %s=%s\n", defines->key, defines->value);
+        free(defines->key);
+        free(defines->value);
+        free(defines);
+        defines = next;
+    }
+}
 
 int read_config(unsigned char * config_file, struct config_t* config) {
     int result = 0;
@@ -346,15 +388,8 @@ int read_config(unsigned char * config_file, struct config_t* config) {
         printf("Build temporary file failed\n");
         return 3;
     }
-    for (int i = 0; i < DEFINES_LENGTH; i++) {
-        if (defines[i].key != NULL) {
-            printf("Define %i: %s=%s\n", i, defines[i].key, defines[i].value);
-            free(defines[i].key);
-            free(defines[i].value);
-            defines[i].key = NULL;
-            defines[i].value = NULL;
-        }
-    }
+
+    free_defines();
 
     // Open file for reading
     fr = f_open(&fil, tmp_file, FA_READ);
@@ -624,7 +659,8 @@ unsigned char *config_menu(void) {
     // Open file for reading
     fr = f_open(&fil, "config-list.txt", FA_READ);
     if (fr != FR_OK) {
-        printf("ERROR: Could not open file config-list.txt\r\n");
+        printf("Could not open file config-list.txt. User config.txt.\n");
+        config_file = strdup("config.txt");
     }
     else {
         char *configs[36];
@@ -718,17 +754,6 @@ int output_code = 1;
 int hide_level = 0;
 int else_count = 0;
 
-char *find_define(char *p_key) {
-    for (int i = 0; i < DEFINES_LENGTH; i++) {
-        if (defines[i].key != NULL) {
-            if (strcmp(defines[i].key, p_key) == 0) {
-                return defines[i].value;
-            }
-        }
-    }
-    return NULL;
-}
-
 void strreplace(char *string, uint8_t start, uint8_t end,  const char *replaceWith) {
     char *end_str = strdup(string + end + 1);
     buf[start] = 0;
@@ -804,21 +829,7 @@ int include_a_file(FIL *out_fp, char *file) {
                     char *p_value = strdup(p);
                     trim(p_value);
                     
-                    int8_t cnt = 0;
-                    while (defines[cnt].key != NULL) {
-                        if (cnt == DEFINES_LENGTH) {
-                            printf("Too many defines. Limit is %i\n", DEFINES_LENGTH);
-                            free(p_key);
-                            free(p_value);
-                            break;
-                        }
-                        cnt++;
-                    }
-
-                    if (cnt < DEFINES_LENGTH) {
-                        defines[cnt].key = p_key;
-                        defines[cnt].value = p_value;
-                    }
+                    add_define(p_key, p_value);
                     free(define_value);
                 }
                 else if (strncmp(buf, "!IFDEF(", 6) == 0) {

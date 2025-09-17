@@ -6,6 +6,7 @@
 * 
 * OUT_MAP_<ascii>=<comma-delimited-seq|ansi-sequence|unicode>
 *
+* This uses unicode for the C64 Pro Mono font
 ********************************
 
 OUT_MAP_$90=^[30m   * Black         30

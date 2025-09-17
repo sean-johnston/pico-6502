@@ -1386,6 +1386,8 @@ int main() {
             printf("Error in reading configuration file.\n");
         }
 
+        free(config_file);
+
         setup_config();    
 
         printf("\n");
