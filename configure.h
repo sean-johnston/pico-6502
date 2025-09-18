@@ -1,21 +1,72 @@
 #include <sd_card.h>
 #include <stdint.h>
 
-#define ATTR_NORMAL        0
-#define ATTR_FIND_STARTING 1
-#define ATTR_FIND_NEXT     2
+#define ATTR_NORMAL        0      // Normal lookup. Whole key
+#define ATTR_FIND_STARTING 1      // Key starts with the specified key value
+#define ATTR_FIND_NEXT     2      // Get the next key starting with the specified key value
 
+// Structure for the configuration
 struct config_t {
-    char roms_txt[20];
-    int serial_flow;
-    int io_emulation;
-    int lcd_installed;
-    uint32_t pico_pins;
-    uint8_t *out_map[256];
-    uint8_t *in_map[256];
-    uint8_t show_output;
+    char     roms_txt[20];        // File that contains the ROM information
+    int      serial_flow;         // Flow control for serial
+    int      io_emulation;        // Type of I/O emulation
+    int      lcd_installed;       // Is the LCD installed
+    uint32_t pico_pins;           // Pico pins used for I/O emulation (Only for 2 and 3)
+    uint8_t *out_map[256];        // Mapping for output characters
+    uint8_t *in_map[256];         // Mapping for input characters
+    uint8_t  show_output;         // Show output when reading configuration file (For debug)
 };
 
+#define IO_EMULATION_AUTO       0 // Auto detected. Tries to initialize the I/O
+#define IO_EMULATION_NONE       1 // Do not use the I/O emulation
+#define IO_EMULATION_FULL_PICO  2 // Full VIA emulation with Pico pins (Future)
+#define IO_EMULATION_BASIC_PICO 3 // Basic port emulation with Pico pins
+#define IO_EMULATION_FULL_EXP   4 // Full VIA emulation with I/O board (Future)
+#define IO_EMULATION_BASIC_EXP  5 // Basic port emulation with I/O board
+
+#define FLOW_CONTROL_AUTO       0 // Auto detected. If GPIO3 is grounded, use XON/XOFF
+#define FLOW_CONTROL_NONE       1 // Force No flow control
+#define FLOW_CONTROL_RTS_CTS    2 // Force RTS/CTS flow control
+#define FLOW_CONTROL_XON_XOFF   3 // Force XON/XOFF flow control
+
+#define COMMENT   '*'             // Character used for a comment
+#define PARAMETER '|'             // Character used for a parameter
+#define ESCAPE    '^'             // Character user for escape
+
+char *trim(char *s);
+
+char *get_attr(
+  FIL *fil, 
+  char *key, 
+  char *def, 
+  uint8_t flags, 
+  char *last_key
+);
+
+uint8_t* translate_utf_8(
+  uint32_t value, 
+  int *cnt
+);
+
+int read_config(
+  unsigned char *config_file, 
+  struct config_t* config
+);
+
+unsigned char *select_menu(
+  struct config_t* config, 
+  unsigned short  *start, 
+  unsigned short *length, 
+  unsigned short *via, 
+  unsigned short *io
+);
+unsigned char *config_menu(void);
+
+void print_seq(char *seq);
+
+int include_a_file(FIL *out_fp, char *file);
+
+// Defines to print a 32 bit binary value
 #define DWORD_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c"
 #define DWORD_TO_BINARY(dword)  \
   ((dword) & 0x80000000 ? '1' : '0'), \
@@ -50,27 +101,3 @@ struct config_t {
   ((dword) & 0x00000004 ? '1' : '0'), \
   ((dword) & 0x00000002 ? '1' : '0'), \
   ((dword) & 0x00000001 ? '1' : '0') 
-
-#define IO_EMULATION_AUTO       0
-#define IO_EMULATION_NONE       1
-#define IO_EMULATION_FULL_PICO  2
-#define IO_EMULATION_BASIC_PICO 3
-#define IO_EMULATION_FULL_EXP   4
-#define IO_EMULATION_BASIC_EXP  5
-
-#define FLOW_CONTROL_AUTO       0
-#define FLOW_CONTROL_NONE       1
-#define FLOW_CONTROL_RTS_CTS    2
-#define FLOW_CONTROL_XON_XOFF   3
-
-#define COMMENT   '*'
-#define PARAMETER '|'
-#define ESCAPE    '^'
-
-char *trim(char *s);
-char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key);
-uint8_t* translate_utf_8(uint32_t value, int *cnt);
-int read_config(unsigned char *config_file, struct config_t* config);
-unsigned char *select_menu(struct config_t* config, unsigned short  *start, unsigned short *length, unsigned short *via, unsigned short *io);
-unsigned char *config_menu(void);
-void print_seq(char *seq);
