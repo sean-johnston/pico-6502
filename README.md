@@ -177,6 +177,33 @@ The sequence will be sent out as:
 
     ^[10;20H
 
+#### Alternate Output Mappings
+
+You can specify an alternate maps by the following;
+
+OUT_MAP_\<mapped character\>:\<mapping set\>=\<mapping\>
+
+Examples:
+
+* OUT_MAP_$0A:$01=UE0F0
+* OUT_MAP_$0A:1=UE0F0
+* OUT_MAP_160:1=UE0F0
+* OUT_MAP_160:$01=UE0F0
+
+If you what to map the main one, leave off the mapping set, specify 0.
+
+To select the alternate mapping 1, in MS-BASIC, run the following:
+
+PRINT CHR$(0);CHR$(1)
+
+If you want to use the main set, run the following:
+
+PRINT CHR$(0);CHR$(0)
+
+You only need to map the characters that already exist in the main set. If you do not map it in the alternate set, it will use the one in the main set.
+
+Currently, you can not have alternates for input mappings.
+
 #### Configuration Directives
 
 You can have directives in you configuration file. These are parsed before the actual reading 

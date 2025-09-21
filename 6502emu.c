@@ -562,6 +562,10 @@ int params_read = 0;
 uint8_t params[10];
 char sequence_buffer[30];
 
+uint8_t map_set         = 0;   // Current map set
+uint8_t map_set_command = 0;   // Map set command flag
+uint8_t *map_set_param  = "|"; // Map set command need a parameter
+
 // Get number of character in sequence
 int get_params(char *seq) {
     // Start at zero
@@ -578,7 +582,27 @@ int get_params(char *seq) {
 
 // Get the mapped sequence for the value
 char *get_mapped(unsigned char value) {
-    return config.out_map[value];
+    // If character is 0 
+    if (value == 0) {
+
+        // Set the map set command flag
+        map_set_command = 1;
+
+        // Return mapping for getting a parameter
+        return map_set_param;
+    }
+
+    // Start with 0 mapping
+    uint8_t* ch = 0;
+
+    // If other set if greater than 0
+    if (map_set > 0) ch = config.out_map[value+(map_set*256)];
+
+    // If map set does not have a map, use the main map.
+    if (ch == 0) ch = config.out_map[value];
+
+    // Return the mapping.
+    return ch;
 }
 
 void write6502(uint16_t address, uint8_t value) {
@@ -601,35 +625,46 @@ void write6502(uint16_t address, uint8_t value) {
 
             // If we have all the parameters
             if (params_read == param_cnt) {
-                // Process sequence
-                char buffer[50]; // Buffer for final string
-                char format[50]; // Buffer for format
-                *format = 0;
-                int format_cnt = 0; // Number of parameters
-                for (int i=0; i<strlen(mapped); i++) {
-                    // If we have a pipe character (parameter)
-                    if (mapped[i] == PARAMETER) {
-                        // Added a parameter to the format
-                        format[format_cnt++] = '%';
-                        format[format_cnt++] = 'i';
-                    }
-                    else {
-                        // Added a character from the mapped sequence
-                        format[format_cnt++] = mapped[i];
-                    } 
+
+                // If this is a map set command
+                if (map_set_command) {
+                    // Set the parameter to the map set
+                    map_set = params[0];
+
+                    // Reset the map set command flag.
+                    map_set_command = 0;
                 }
-                format[format_cnt] = 0;
-                // Produce the final sequence
-                sprintf(buffer, format, params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9]);
-                // Print the sequence
-                //printf("mapped: ");
-                //print_seq(mapped);
-                //printf("  format: ");
-                //print_seq(format);
-                //printf("  buffer: ");
-                //print_seq(buffer);
-                //printf("\n");
-                printf("%s", buffer);
+                else {
+                    // Process sequence
+                    char buffer[50]; // Buffer for final string
+                    char format[50]; // Buffer for format
+                    *format = 0;
+                    int format_cnt = 0; // Number of parameters
+                    for (int i=0; i<strlen(mapped); i++) {
+                        // If we have a pipe character (parameter)
+                        if (mapped[i] == PARAMETER) {
+                            // Added a parameter to the format
+                            format[format_cnt++] = '%';
+                            format[format_cnt++] = 'i';
+                        }
+                        else {
+                            // Added a character from the mapped sequence
+                            format[format_cnt++] = mapped[i];
+                        } 
+                    }
+                    format[format_cnt] = 0;
+                    // Produce the final sequence
+                    sprintf(buffer, format, params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9]);
+                    // Print the sequence
+                    //printf("mapped: ");
+                    //print_seq(mapped);
+                    //printf("  format: ");
+                    //print_seq(format);
+                    //printf("  buffer: ");
+                    //print_seq(buffer);
+                    //printf("\n");
+                    printf("%s", buffer);
+                }
 
                 // Reset the parameter count and mapped variables
                 param_cnt = 0;

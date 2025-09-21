@@ -257,7 +257,7 @@ void load_map(FIL *fil, char *mkey, uint8_t **map, uint8_t show_output) {
     while (*data != 0) {
         // Show output if the flag is set
         if (show_output == 1) {
-            printf("Key: %s - Data: %s\n", key, data);
+          printf("Key: %s - Data: %s\n", key, data);
         }
         char *endptr;
         int cnt = 0;
@@ -327,6 +327,29 @@ void load_map(FIL *fil, char *mkey, uint8_t **map, uint8_t show_output) {
         memcpy(mp, mapping, cnt);
         mp[cnt] = 0;
 
+        // Get the mapping set
+        uint8_t map_set = 0;
+
+        // Check if there is a colon
+        char *ms = strstr(key,":");
+
+        // If we have one, use the map set
+        if (ms) {
+            // Terminate the key and increment the pointer
+            // past the colon
+            *ms = 0;
+            ms++;
+
+            // Get set value as hex
+            if (*ms == '$') {
+                map_set = strtol(ms+1, &endptr, 16);
+            }
+            // Get set value as decimal
+            else {
+                map_set = strtol(ms, &endptr, 10);
+            }
+        }
+
         // If key ends in dollar sign
         uint8_t num;
         // Process key as hex
@@ -338,7 +361,7 @@ void load_map(FIL *fil, char *mkey, uint8_t **map, uint8_t show_output) {
             num = strtol(key+strlen(mkey), &endptr, 10);
         }
         // Store the mapping in the configuration
-        map[num] = mp;
+        map[num+(map_set*256)] = mp;
 
         // Get the next key
         data = get_attr(fil,mkey, "", ATTR_FIND_NEXT, key);
@@ -470,7 +493,7 @@ int read_config(unsigned char * config_file, struct config_t* config) {
     config->pico_pins     = 0x0000;
 
     // Initialize the maps
-    for (int i = 0; i < 256; i++) config->out_map[i] = NULL;
+    for (int i = 0; i < 256*5; i++) config->out_map[i] = NULL;
     for (int i = 0; i < 256; i++) config->in_map[i] = NULL;
 
     FRESULT fr;
