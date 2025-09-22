@@ -1029,8 +1029,8 @@ void write6502(uint16_t address, uint8_t value) {
                     for (int i = 0; i < 8; i++) {
                         if (value & 1) {
                             gpio_outs |= pb[i];
-                            value = value >> 1;
                         }
+                        value = value >> 1;
                     }
                     DISPLAY_DEBUG("Port B: %08x %08x\n", gpio_dirs, gpio_outs);
                     gpio_put_masked(gpio_dirs, gpio_outs);
@@ -1040,8 +1040,8 @@ void write6502(uint16_t address, uint8_t value) {
                     for (int i = 0; i < 8; i++) {
                         if (value & 1) {
                             gpio_outs |= pa[i];
-                            value = value >> 1;
                         }
+                        value = value >> 1;
                     }
                     DISPLAY_DEBUG("Port A: %08x %08x\n", gpio_dirs, gpio_outs);
                     gpio_put_masked(gpio_dirs, gpio_outs);
@@ -1051,8 +1051,8 @@ void write6502(uint16_t address, uint8_t value) {
                     for (int i = 0; i < 8; i++) {
                         if (value & 1) {
                             gpio_dirs |= pb[i];
-                            value = value >> 1;
                         }
+                        value = value >> 1;
                     }
                     gpio_set_dir_all_bits(gpio_dirs);
 
@@ -1061,8 +1061,8 @@ void write6502(uint16_t address, uint8_t value) {
                     for (int i = 0; i < 8; i++) {
                         if (value & 1) {
                             gpio_dirs |= pa[i];
-                            value = value >> 1;
                         }
+                        value = value >> 1;
                     }
                     gpio_set_dir_all_bits(gpio_dirs);
                 }
