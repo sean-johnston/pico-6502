@@ -515,9 +515,14 @@ unsigned char *scan_files (
             // Get the size of the item
             unsigned int size = fno.fsize;
 
-            // Format item
-            //sprintf(tmp,"%-20s  %10u\n", fno.fname, size);
-            sprintf(tmp,"%-6u %s\n", size, fno.fname);
+            if (fno.fattrib & AM_DIR) {            /* It is a directory */
+                sprintf(tmp,"<DIR>  %s\n", fno.fname);
+            }
+            else {
+                // Format item
+                //sprintf(tmp,"%-20s  %10u\n", fno.fname, size);
+                sprintf(tmp,"%-6u %s\n", size, fno.fname);
+            }
 
             // Append it to the end of the buffer
             strcat(data+2, tmp);
@@ -746,6 +751,12 @@ void write6502(uint16_t address, uint8_t value) {
                 else {
                     strcat(new_filename, filename);
                 }
+                char *dir_path = strdup(new_filename);
+                char *last = strrchr(dir_path,'/');
+                if (last) *last = 0;
+                f_mkdir(dir_path);
+                free(dir_path);
+
                 FILINFO fno;
 
                 if (!replace) {
@@ -937,7 +948,15 @@ void write6502(uint16_t address, uint8_t value) {
             else {
                 // Read the files on SD card, and return a buffer, with
                 // the list
-                unsigned char *x = scan_files("/data");
+
+                strcpy(new_filename, "data/");
+
+                if (filename) {
+                    strcat(new_filename,filename);
+                }
+                DISPLAY_DEBUG("\nFilename: %s\n", filename);
+                DISPLAY_DEBUG("\nFile Path: %s\n", new_filename);
+                unsigned char *x = scan_files(new_filename);
                 DISPLAY_DEBUG(x+2);
                 if (load_data != NULL) {
                     free(load_data);
@@ -964,6 +983,7 @@ void write6502(uint16_t address, uint8_t value) {
                 filename_length = value ;
                 filename = malloc(filename_length + 1);
                 filename_pos = 0;
+                filename[filename_length] = 0;
             }
             else {
                 // Fill in the filename until we have reached the size.
