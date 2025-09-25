@@ -5,6 +5,8 @@
 #define ATTR_FIND_STARTING 1      // Key starts with the specified key value
 #define ATTR_FIND_NEXT     2      // Get the next key starting with the specified key value
 
+#define MAP_SETS           8
+
 // Structure for the configuration
 struct config_t {
     char     roms_txt[20];        // File that contains the ROM information
@@ -12,7 +14,7 @@ struct config_t {
     int      io_emulation;        // Type of I/O emulation
     int      lcd_installed;       // Is the LCD installed
     uint32_t pico_pins;           // Pico pins used for I/O emulation (Only for 2 and 3)
-    uint8_t *out_map[256*5];      // Mapping for output characters
+    uint8_t *out_map[256*MAP_SETS];      // Mapping for output characters
     uint8_t *in_map[256];         // Mapping for input characters
     uint8_t  show_output;         // Show output when reading configuration file (For debug)
 };

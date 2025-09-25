@@ -360,8 +360,10 @@ void load_map(FIL *fil, char *mkey, uint8_t **map, uint8_t show_output) {
         else {
             num = strtol(key+strlen(mkey), &endptr, 10);
         }
-        // Store the mapping in the configuration
-        map[num+(map_set*256)] = mp;
+        if (map_set < MAP_SETS) {
+            // Store the mapping in the configuration
+            map[num+(map_set*256)] = mp;
+        }
 
         // Get the next key
         data = get_attr(fil,mkey, "", ATTR_FIND_NEXT, key);
@@ -431,17 +433,13 @@ char *find_define(char *p_key) {
     // Get first define structure
     struct define *next = defines;
 
-    // If there is one
-    if (next != NULL) {
-        // Go through items until we reach the end
-        while (next->next != NULL) {
-            // If the key matches, return it
-            if (strcmp(p_key, next->key) == 0) {
-                return next->value;
-            }
-            // Go to the next item
-            next = next->next;
+    while (next != NULL) {
+        // If the key matches, return it
+        if (strcmp(p_key, next->key) == 0) {
+            return next->value;
         }
+        // Go to the next item
+        next = next->next;
     }
     // Return NULL if we don't find one
     return NULL;
