@@ -105,6 +105,8 @@ uint8_t porta_value = 0;
 uint8_t portb_value = 0;
 uint32_t new_pins = 0;
 
+
+
 //#ifdef VIA_BASE_ADDRESS
 
 void via_update() {
@@ -187,17 +189,20 @@ unsigned char error_status;
 int DEBUG_IO = 0;
 #define DISPLAY_DEBUG if (DEBUG_IO) printf 
 
-#define PORTB 0xD000
-#define PORTA 0xD001
-#define DDRB  0xD002
-#define DDRA  0xD003
-
 #define PORT_A 0
 #define PORT_B 1
 
 const uint CTS_PIN = 2;
 int xon_xoff = 0;
 
+//***************************************************
+// Initialize the I/O board.
+//
+// gpio_irq - Pico gpio pin for interupt
+// 
+// Returns 1 if I/O board is initialized, 0 of it is
+// not
+//***************************************************
 int init_io(uint gpio_irq) {
     g_handle = setup_i2c(i2c0, 0x27);
 
@@ -220,20 +225,31 @@ int8_t input_buffer[4096];
 
 //#define OLD_KEY
 
+//***************************************************
+// Check if key is proessed. If it is, store it in
+// queue. Handle the handshaking if it is turned on
+//
+// timeout - How long to wait for the keypress
+//***************************************************
 void poll_keypress(uint32_t timeout) {
 #ifndef OLD_KEY
+    // Get the key from the keyboard
     int16_t ch = getchar_timeout_us(timeout);
+
+    // Return if it timed out
     if (ch == PICO_ERROR_TIMEOUT) {
         return;
     }
+
+    // Store the key at the end of the queue
     input_buffer[end_buffer] = (uint8_t)ch;
     end_buffer++;
     buffer_count++;
 
-    // RTS/CTS
+    // Process RTS/CTS, buffer is full
     if (xon_xoff == 0 && buffer_count >= sizeof(input_buffer) - 255) gpio_put(CTS_PIN, 1);
 
-    // XON/XOFF
+    // Process XON/XOFF, buffer is full
     if (xon_xoff == 1 && buffer_count >= sizeof(input_buffer) - 255) printf("%c",0x13);
 
     // Buffer overflow. Only get here if flow control is turned off, on terminal
@@ -243,6 +259,11 @@ void poll_keypress(uint32_t timeout) {
 #endif
 }
 
+//***************************************************
+// Get the next key in the buffer.
+//
+// Return the key or 0 if there is none
+//***************************************************
 uint8_t get_key(void) {
 #ifdef OLD_KEY
     int16_t ch = getchar_timeout_us(100);
@@ -272,26 +293,42 @@ uint8_t seq[10];
 
 struct config_t *g_config = NULL;
 
+//***************************************************
+// Process ANSI escape sequence from input
+// 
+// Returns a the mapped character, or 0 if not found
+//***************************************************
 uint8_t process_esc(void) {
     uint8_t cnt = 0;
     uint8_t ch = 0x1b;
+    // Process the key input until there is not keypress
     while (ch != 0) {
         seq[cnt++]=ch;
         ch = (uint8_t)get_key();
     }
     seq[cnt++] = 0;
+
+    // Find the seqence in the in map
     for (int i=0; i < 256; i++) {
-        //printf("%i\n", i);
+        // If the is a mapped character
         if (g_config->in_map[i] != 0) {
-            //print_seq(seq);
+            // Check if it matches, return the character
             if (strcmp(g_config->in_map[i],seq) == 0) {
                 return i;
             }
         }
     }
+    // If we didn't find a mapping, return 0
     return 0;
 }
 
+//***************************************************
+// Read byte from the memory address
+//
+// address - 16 bit unsigned number for the address
+// 
+// Returns the byte at that location or a register
+//***************************************************
 uint8_t read6502(uint16_t address) {
 #ifndef TESTING
     // TODO: Make this configurable
@@ -343,17 +380,20 @@ uint8_t read6502(uint16_t address) {
             return 0;
         }
 
+    // Return the status of data
     } else if (address == file_data) {
         DISPLAY_DEBUG("Error status: %i\n", error_status);
         return error_status;
 
+    // Return if the LCD is installed or not
     } else if (address == lcd_state) {
-        //printf("lcd state: %i\n", lcd_installed);
         return config.lcd_installed;
+
+    // With the VIA location
     } else if ((address & 0xFFF0) == via_location) {
         if (config.serial_flow == IO_EMULATION_BASIC_EXP) {
             if (io_available) {
-                if (via_location != 0 && address == PORTB) {
+                if (via_location != 0 && address == via_location) {
                     uint8_t value;
                     if (io_available) {
                         read_port(g_handle, PORT_B, &value);
@@ -362,13 +402,13 @@ uint8_t read6502(uint16_t address) {
                         value = 0;    
                     }
                     return value;
-                } else if (via_location != 0 && address == PORTA) {
+                } else if (via_location != 0 && address == via_location + 1) {
                     uint8_t value;
                     read_port(g_handle, PORT_A, &value);
                     return value;
-                } else if (via_location != 0 && address == DDRB) {
+                } else if (via_location != 0 && address == via_location + 2) {
                     return ddrb_value;
-                } else if (via_location != 0 && address == DDRA) {
+                } else if (via_location != 0 && address == via_location + 3) {
                     return ddrb_value;
                 }
             }
@@ -378,22 +418,22 @@ uint8_t read6502(uint16_t address) {
 
         } else if (config.io_emulation == IO_EMULATION_BASIC_PICO) {
             if (io_available) {
-                if (via_location != 0 && address == PORTB) {
+                if (via_location != 0 && address == via_location) {
                     uint8_t value;
                     if (io_available) {
-                        //read_port(g_handle, PORT_B, &value);
+                        read_port(g_handle, PORT_B, &value);
                     }
                     else {
                         value = 0;    
                     }
                     return value;
-                } else if (via_location != 0 && address == PORTA) {
+                } else if (via_location != 0 && address == via_location + 1) {
                     uint8_t value;
-                    //read_port(g_handle, PORT_A, &value);
+                    read_port(g_handle, PORT_A, &value);
                     return value;
-                } else if (via_location != 0 && address == DDRB) {
+                } else if (via_location != 0 && address == via_location + 2) {
                     return ddrb_value;
-                } else if (via_location != 0 && address == DDRA) {
+                } else if (via_location != 0 && address == via_location + 3) {
                     return ddrb_value;
                 }
             }
@@ -474,9 +514,20 @@ uint8_t read6502(uint16_t address) {
 //#endif
     }
 #endif
+    // Return the memory byte
     return mem[address];
 }
 
+//***************************************************
+// Scan the files in the specified directory of the
+// SD Card.
+//
+// path - Path to the directory on the SD Card.
+// 
+// Returns a memory buffer containing the directory
+// output. 10k buffer. 
+// Todo: Need to make this more dynamic
+//***************************************************
 unsigned char *scan_files (
     char* path        /* Start node to be scanned (***also used as work area***) */
 )
@@ -515,18 +566,16 @@ unsigned char *scan_files (
             // Get the size of the item
             unsigned int size = fno.fsize;
 
+            // Format the item
             if (fno.fattrib & AM_DIR) {            /* It is a directory */
                 sprintf(tmp,"<DIR>  %s\n", fno.fname);
             }
             else {
-                // Format item
-                //sprintf(tmp,"%-20s  %10u\n", fno.fname, size);
                 sprintf(tmp,"%-6u %s\n", size, fno.fname);
             }
 
             // Append it to the end of the buffer
             strcat(data+2, tmp);
-            //printf("%-20s  %10u\n", fno.fname, fno.fsize);
         }
 
         // Close the directory
@@ -543,6 +592,10 @@ unsigned char *scan_files (
 
 char new_filename[255];
 
+//***************************************************
+// Free the filename, data and load data buffer, and
+// set all values to initial values.
+//***************************************************
 void cleanup_buffers(void) {
     // Clean up the buffers
     if (filename != NULL) {
@@ -571,7 +624,13 @@ uint8_t map_set         = 0;   // Current map set
 uint8_t map_set_command = 0;   // Map set command flag
 uint8_t *map_set_param  = "|"; // Map set command need a parameter
 
+//***************************************************
 // Get number of character in sequence
+// 
+// seq - Sequence
+//
+// Returns the number of parameters in a sequence
+//***************************************************
 int get_params(char *seq) {
     // Start at zero
     int param_count = 0;
@@ -585,11 +644,17 @@ int get_params(char *seq) {
     return param_count;
 }
 
+//***************************************************
 // Get the mapped sequence for the value
+//
+// value - Character to get the map for
+// 
+// Returns the sequence for the mapped character or 
+// zero.
+//***************************************************
 char *get_mapped(unsigned char value) {
     // If character is 0 
     if (value == 0) {
-
         // Set the map set command flag
         map_set_command = 1;
 
@@ -601,15 +666,26 @@ char *get_mapped(unsigned char value) {
     uint8_t* ch = 0;
 
     // If other set if greater than 0
-    if (map_set > 0) ch = config.out_map[value+(map_set*256)];
+    if (map_set > 0) {
+        ch = config.out_map[value+(map_set*256)];
+    }
 
     // If map set does not have a map, use the main map.
-    if (ch == 0) ch = config.out_map[value];
+    if (ch == 0) {
+        ch = config.out_map[value];
+    }
 
     // Return the mapping.
     return ch;
 }
 
+//***************************************************
+// Write a byte to the memory or register
+// 
+// Address - Address in memory
+// value - Value to put in the memory location or
+//         register.
+//***************************************************
 void write6502(uint16_t address, uint8_t value) {
 #ifdef TESTING
     mem[address] = value;
@@ -661,13 +737,6 @@ void write6502(uint16_t address, uint8_t value) {
                     // Produce the final sequence
                     sprintf(buffer, format, params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9]);
                     // Print the sequence
-                    //printf("mapped: ");
-                    //print_seq(mapped);
-                    //printf("  format: ");
-                    //print_seq(format);
-                    //printf("  buffer: ");
-                    //print_seq(buffer);
-                    //printf("\n");
                     printf("%s", buffer);
                 }
 
@@ -1385,6 +1454,8 @@ void setup_config(void) {
     }
 }
 
+void set_sd_card_pins(uint8_t spi, uint8_t miso, uint8_t sck, uint8_t mosi);
+
 int main() {
 #ifdef OVERCLOCK
     vreg_set_voltage(VREG_VOLTAGE_1_15);
@@ -1398,7 +1469,7 @@ int main() {
     FRESULT fr;
     char buf[100];
 
-    // Wait for user to press 'enter' to continue
+    // Wait for user to press 'ENTER' to continue
     printf("\r\nPress 'ENTER' to start.\r\n");
     while (true) {
         buf[0] = getchar();
@@ -1409,21 +1480,7 @@ int main() {
 
     printf("\n");
     printf("Initializing SD card ...\n");
-
-    void set_sd_card_pins(uint8_t spi, uint8_t miso, uint8_t sck, uint8_t mosi);
-
-    //gpio_init(5);
-    //gpio_set_dir(5   , GPIO_IN);
-    //gpio_pull_up(5);
-    //uint8_t pin_5 = gpio_get(5);
-    //if (!pin_5) {
-        set_sd_card_pins(0, 4, 6, 7);
-    //    printf("SD card on pins 4, 6 and 7\n");
-    //}
-    //else {
-    //    set_sd_card_pins(1, 8, 10, 11);
-    //    printf("SD card on pins 8, 10 and 11\n");
-    //}
+    set_sd_card_pins(0, 4, 6, 7);
     sd_init_driver();
 
     fr = f_mount(&fs, "0:", 1);
