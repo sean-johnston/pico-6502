@@ -391,6 +391,31 @@ struct define *defines = NULL; // [DEFINES_LENGTH];
 
 //***************************************
 //
+// Find the key in the linked list, and
+// returns it.
+//
+// p_key = Key to find
+//
+// Returns the key, or NULL if it
+// is not found.
+//
+//***************************************
+struct define *find_key(char *p_key) {
+    struct define *next = defines;
+
+    while (next != NULL) {
+        // If the key matches, return it
+        if (strcmp(p_key, next->key) == 0) {
+            return next;
+        }
+        // Go to the next item
+        next = next->next;
+    }
+    return NULL;
+}
+
+//***************************************
+//
 // Add a define to the link list
 //
 // key - Key for the define
@@ -398,8 +423,21 @@ struct define *defines = NULL; // [DEFINES_LENGTH];
 // 
 //***************************************
 void add_define(char *key, char *value) {
+
+    // Find the key
+    struct define *next = find_key(key);
+
+    // If found
+    if (next) {
+        // Free the old value
+        free(next->value);
+
+        // assign a new value
+        next->value = strdup(value);
+    }
+
     // Store pointer to the defines
-    struct define *next = defines;
+    next = defines;
 
     // Allocate a new define structure
     defines = (struct define *)malloc(sizeof(struct define));
@@ -430,17 +468,12 @@ void add_define(char *key, char *value) {
 //
 //***************************************
 char *find_define(char *p_key) {
-    // Get first define structure
-    struct define *next = defines;
+    // Find the key
+    struct define *key = find_key(p_key);
 
-    while (next != NULL) {
-        // If the key matches, return it
-        if (strcmp(p_key, next->key) == 0) {
-            return next->value;
-        }
-        // Go to the next item
-        next = next->next;
-    }
+    // If we found the key return the value
+    if (key) return key->value;
+
     // Return NULL if we don't find one
     return NULL;
 }

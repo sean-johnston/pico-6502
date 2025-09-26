@@ -211,7 +211,8 @@ of configuration file. This get the file ready to read.
 
 The directives are as follows:
 
-* !DEFINE(key,value) - Defines a key/value pair that can be used for conditional or substitutions.
+* !DEFINE(key,value) - Defines a key/value pair that can be used for conditional or substitutions. If you invoke the key with
+a different value, the value will be replaced, with the new value.
 * !INCLUDE(filename) - Includes another file into the current file, at this place.
 * !IFDEF(key) - If the key is defined, the block between this directive and the !ELSE or !ENDIF will be included in the file.
 * !IFNDEF(key) - If the key is not defined, the block between this directive and the !ELSE or !ENDIF will be included in the file.
