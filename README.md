@@ -259,9 +259,16 @@ Included are binary files for the following:
 * Hello World program
 * Echo (Echos keystrokes from the terminal)
 
+### Sound 
+
+You can connect an audio amplifier and speaker to GPIO pin 28 to get a tone. To play the note, put the value in location
+$F008 (low byte) and $F009 (High byte). The value is 65536 - microseconds for a pulse.
+
+Example: A (440) is	63264 or 32 (LB) and 247 (HB)
+
 ### Extended I/O
 
-I extended the I/O to allow saving and loading to the SD Card, as well as displaying a directory. The following are the default I/O 
+I extended the I/O to allow saving and loading to the SD Card, as well as displaying a directory. The following are the default I/O
 addresses. The start of theses addresses can be overridden in the roms.txt file. The protocol for the extra I/O will be explained
 later in this document. The addresses are as follows:
 
@@ -272,6 +279,8 @@ later in this document. The addresses are as follows:
 * $F005 - File Load Data - This is used to stream the data in, based on the File Mode 
 * $F006 - Debug IO Enable - This enables debugging output for the I/O.
 * $F007 - LCD status. If 1, the LCD is installed. If 0, it is not. This is read from the configuration file.
+* $F008 - Low byte of frequency for sound (65536 - microsecond)
+* $f009 - High byte of frequency for sound (65536 - microsecond)
 
 ### RS232 interface
 
@@ -479,6 +488,20 @@ https://www.amazon.com/dp/B07ZYVS2W6?ref=ppx_yo2ov_dt_b_fed_asin_title
 #### Jumper Wires
 
 Any kind of wires will do, depending on how you are hooking them up.
+
+#### Audio Amplifier and Speaker
+
+To do sound, we need an amplifier and speaker.
+
+<img src="images/amp.png" width = "400px" >
+
+WWZMDiB LM386 Mono Audio Amplifier 200 Times Circuit Design with 10K Adjustable Resistor 5~12V
+
+https://www.amazon.com/dp/B0CCJ5G8YR?ref=ppx_yo2ov_dt_b_fed_asin_title
+
+2 Pack 2" 8ohm 3w Full Range Speakers, DIY Speaker Kit for Replacement Speakers, Complicable with Arduino Speaker
+
+https://www.amazon.com/dp/B0DYDT1KTW?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1
 
 ## Wiring Diagram
 
