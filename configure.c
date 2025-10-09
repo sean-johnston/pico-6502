@@ -19,19 +19,19 @@ char *trim(char *str)
     size_t len = 0;
     char *frontp = str;
     char *endp = NULL;
-    
+
     // If the NULL string return NULL
     if( str == NULL ) { return NULL; }
 
     // If empty string return empty string
     if( str[0] == '\0' ) { return str; }
-    
+
     // Get the length of the string.
     len = strlen(str);
 
     // Get pointer to the end of the string
     endp = str + len;
-    
+
     /* Move the front and back pointers to address the first non-whitespace
      * characters from each end.
      */
@@ -40,7 +40,7 @@ char *trim(char *str)
     {
         while( isspace((unsigned char) *(--endp)) && endp != frontp ) {}
     }
-    
+
     if(frontp != str && endp == frontp )
     {
         // Empty string
@@ -48,7 +48,7 @@ char *trim(char *str)
     }
     else if( str + len - 1 != endp )
             *(endp + 1) = '\0';
-    
+
     /* Shift the string so that it starts at str so that if it's dynamically
      * allocated, we can still free it on the returned pointer.  Note the reuse
      * of endp to mean the front of the string buffer now.
@@ -59,7 +59,7 @@ char *trim(char *str)
             while( *frontp ) { *endp++ = *frontp++; }
             *endp = '\0';
     }
-    
+
     return str;
 }
 
@@ -97,7 +97,7 @@ char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key) {
 
     // Get each line
     while (f_gets(buf, sizeof(buf), fil)) {
-        
+
         // Trim off the LF
         if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n') {
             buf[strlen(buf)-1] = 0;
@@ -129,7 +129,7 @@ char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key) {
             // Duplicate value and trim spaces
             char *p_value = strdup(p);
             trim(p_value);
-            
+
             // Copy the key to the last key, so it can be returned
             if (last_key != NULL) {
                 strcpy(last_key, p_key);
@@ -153,7 +153,7 @@ char *get_attr(FIL *fil, char *key, char *def, uint8_t flags, char *last_key) {
                     break;
                 }
             }
-            
+
             // Free the line, key and value
             free(line);
             free(p_key);
@@ -714,7 +714,7 @@ unsigned char *select_menu(struct config_t* config, unsigned short  *start, unsi
 
         // Get file line by line
         while (f_gets(buf, sizeof(buf), &fil)) {
-            
+
             // Remove the LF
             if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n') {
                 buf[strlen(buf)-1] = 0;
@@ -873,7 +873,7 @@ unsigned char *config_menu(void) {
     // Open file for reading
     fr = f_open(&fil, "config-list.txt", FA_READ);
     if (fr != FR_OK) {
-        printf("Could not open file config-list.txt. User config.txt.\n");
+        printf("Could not open file config-list.txt. Using config.txt.\n");
         config_file = strdup("config.txt");
     }
     else {
@@ -885,7 +885,7 @@ unsigned char *config_menu(void) {
 
         // Get file line by line
         while (f_gets(buf, sizeof(buf), &fil)) {
-            
+
             // Remove the LF
             if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n') {
                 buf[strlen(buf)-1] = 0;
@@ -1035,7 +1035,7 @@ int include_a_file(FIL *out_fp, char *file) {
 
                     // Put the curly bracket back
                     replace_end[strlen(replace_end)] = '}';
-                    
+
                     // Find the define to replace
                     char *key_value = find_define(key);
 
@@ -1049,7 +1049,7 @@ int include_a_file(FIL *out_fp, char *file) {
                     }
                     // Free the key
                     free(key);
-                    
+
             }
 
             //***********************************************************
@@ -1087,7 +1087,7 @@ int include_a_file(FIL *out_fp, char *file) {
                     p = strtok(NULL,")");
                     char *p_value = strdup(p);
                     trim(p_value);
-                    
+
                     // Add the define
                     add_define(p_key, p_value);
 
@@ -1218,7 +1218,7 @@ int include_a_file(FIL *out_fp, char *file) {
                             output_code = 0;
                             hide_level = if_level + 1;
                         }
-                        
+
                         // Free the memory
                         free(value);
                         free(p_key);

@@ -167,6 +167,7 @@ unsigned short chrin           = 0xf004;
 unsigned short file_load_data  = 0xf005;
 unsigned short debug_io_enable = 0xf006;
 unsigned short lcd_state       = 0xf007;
+unsigned short sound           = 0xf008;
 
 unsigned char filename_length;
 unsigned char filename_pos;
@@ -187,13 +188,29 @@ unsigned char error_status;
 //#define DEBUG_IO
 
 int DEBUG_IO = 0;
-#define DISPLAY_DEBUG if (DEBUG_IO) printf 
+#define DISPLAY_DEBUG if (DEBUG_IO) printf
 
 #define PORT_A 0
 #define PORT_B 1
 
 const uint CTS_PIN = 2;
+const uint SOUND_PIN = 28;
 int xon_xoff = 0;
+int32_t freq = 0;
+repeating_timer_t out_timer;
+bool has_timer = false;
+uint8_t sound_toggle = 0;
+
+bool timer_callback(repeating_timer_t *rt) {
+    sound_toggle = sound_toggle?0:1;
+    gpio_put(SOUND_PIN, sound_toggle);
+
+//    static bool led_state = false; // Static variable to maintain state
+//    gpio_put(PICO_DEFAULT_LED_PIN, led_state); // Toggle the LED
+//    led_state = !led_state; // Invert the state for the next call
+    return true; // Return true to continue the timer
+}
+
 
 //***************************************************
 // Initialize the I/O board.
@@ -424,7 +441,7 @@ uint8_t read6502(uint16_t address) {
                         read_port(g_handle, PORT_B, &value);
                     }
                     else {
-                        value = 0;    
+                        value = 0;
                     }
                     return value;
                 } else if (via_location != 0 && address == via_location + 1) {
@@ -559,7 +576,7 @@ unsigned char *scan_files (
 
             // If we have no more items, exit loop
             if (fno.fname[0] == 0) break;
-            
+
             // If name is . or .., ignore
             if (fno.fname[0] == '.') continue;
 
@@ -649,11 +666,11 @@ int get_params(char *seq) {
 //
 // value - Character to get the map for
 // 
-// Returns the sequence for the mapped character or 
+// Returns the sequence for the mapped character or
 // zero.
 //***************************************************
 char *get_mapped(unsigned char value) {
-    // If character is 0 
+    // If character is 0
     if (value == 0) {
         // Set the map set command flag
         map_set_command = 1;
@@ -765,6 +782,30 @@ void write6502(uint16_t address, uint8_t value) {
                 // Not mapped character
                 printf("%c", value);
             }
+        }
+
+    } else if (address == sound) {
+
+        freq = (freq & 0xff00) | value;
+        if (has_timer != 0) {
+            cancel_repeating_timer(&out_timer);
+            has_timer = false;
+        }
+        if (freq != 0) {
+            add_repeating_timer_us((uint32_t)(65536-freq)/2, timer_callback, 0, &out_timer);
+            has_timer = true;
+        }
+
+
+    } else if (address == sound+1) {
+        freq = (freq & 0x00ff) | (value << 8);
+        if (has_timer != 0) {
+            cancel_repeating_timer(&out_timer);
+            has_timer = false;
+        }
+        if (freq != 0) {
+            add_repeating_timer_us((uint32_t)(65536-freq)/2, timer_callback, 0, &out_timer);
+            has_timer = true;
         }
 
     // Setting the file mode
@@ -919,10 +960,10 @@ void write6502(uint16_t address, uint8_t value) {
                 error_status = 4;
             }
 
-            // Clean up 
+            // Clean up
             cleanup_buffers();
         }
-        
+
         if (file_state == FILE_MODE_READ_DATA) {
 
             FRESULT fr;
@@ -1191,7 +1232,7 @@ void write6502(uint16_t address, uint8_t value) {
                     uint8_t db = (uint8_t)((gpio_dirs >> 15) & 0xff);
                     uint8_t pb = (uint8_t)((gpio_outs >> 15) & 0xff);
                     //printf("Port B: D %02x - P %02x\n",db, pb);
-                    write_port(g_handle, PORT_B, pb);            
+                    write_port(g_handle, PORT_B, pb);
 
                 }
 
@@ -1214,9 +1255,9 @@ void write6502(uint16_t address, uint8_t value) {
                     uint8_t da = (uint8_t)(gpio_dirs & 0xff);
                     uint8_t pa = (uint8_t)(gpio_outs & 0xff);
                     //printf("Port A: D %02x - P %02x\n", da, pa);
-                    write_port(g_handle, PORT_A, pa);            
+                    write_port(g_handle, PORT_A, pa);
                 }
-                
+
                 via_pins = m6522_tick(&via, via_pins);
 
                 via_update();
@@ -1261,7 +1302,7 @@ void write6502(uint16_t address, uint8_t value) {
                     uint8_t db = (uint8_t)((gpio_dirs >> 15) & 0xff);
                     uint8_t pb = (uint8_t)((gpio_outs >> 15) & 0xff);
                     //printf("Port B: D %02x - P %02x\n",db, pb);
-                    write_port(g_handle, PORT_B, pb);            
+                    write_port(g_handle, PORT_B, pb);
 
                 }
 
@@ -1284,9 +1325,9 @@ void write6502(uint16_t address, uint8_t value) {
                     uint8_t da = (uint8_t)(gpio_dirs & 0xff);
                     uint8_t pa = (uint8_t)(gpio_outs & 0xff);
                     //printf("Port A: D %02x - P %02x\n", da, pa);
-                    write_port(g_handle, PORT_A, pa);            
+                    write_port(g_handle, PORT_A, pa);
                 }
-                
+
                 via_pins = m6522_tick(&via, via_pins);
 
                 via_update();
@@ -1317,7 +1358,7 @@ void callback() {
 
                 printf("Average emulated speed was %.3f MHz\n", khz);
             }
-            
+
             if (old_pc == 0x24F1) {
                 printf("65C02 test suite passed sucessfully!\n\n");
 
@@ -1328,7 +1369,7 @@ void callback() {
 
                 printf("Average emulated speed was %.3f MHz\n", khz);
                 printf("Average emulated speed was %.3f MHz\n", khz);
-                
+
             } else {
                 printf("65C02 test suite failed\n");
                 printf("pc %04X opcode: %02X test: %d status: %02X \n", old_pc, opcode, mem[0x202], status);
@@ -1336,8 +1377,7 @@ void callback() {
             }
 
             running= false;
-            
-            
+
         }
         old_pc4 = old_pc3;
         old_pc3 = old_pc2;
@@ -1361,10 +1401,10 @@ void callback() {
     }
 
     via_update();
-    
+
     old_ticks = clockticks6502;
 #endif
-    
+
 }
 
 void setup_config(void) {
@@ -1372,6 +1412,10 @@ void setup_config(void) {
     gpio_init(CTS_PIN);
     gpio_set_dir(CTS_PIN   , GPIO_IN);
     gpio_pull_up(CTS_PIN);
+
+    gpio_init(SOUND_PIN);
+    gpio_set_dir(SOUND_PIN   , GPIO_OUT);
+    gpio_pull_up(SOUND_PIN);
 
     if (config.serial_flow == FLOW_CONTROL_AUTO) {
         printf("Flow Control\n");
@@ -1428,7 +1472,7 @@ void setup_config(void) {
         for (int i = 0; i < 8; i++) {
             while (cnt < 32 && (pins & 1) == 0) {
                 cnt++;
-                pins = pins >> 1;            
+                pins = pins >> 1;
             }
             if (cnt >= 32) break;
             pa[i] = (int)pow((double)2,(double)cnt);
@@ -1440,7 +1484,7 @@ void setup_config(void) {
         for (int i = 0; i < 8; i++) {
             while (cnt < 32 && (pins & 1) == 0) {
                 cnt++;
-                pins = pins >> 1;            
+                pins = pins >> 1;
             }
             if (cnt >= 32) break;
             pb[i] = (int)pow((double)2,(double)cnt);
@@ -1469,6 +1513,9 @@ int main() {
     FRESULT fr;
     char buf[100];
 
+//    uint16_t freq = 53402; //63512; //63264;
+
+    //add_repeating_timer_us	((uint32_t)(65536-freq)/2, timer_callback, 0, &out_timer);
     // Wait for user to press 'ENTER' to continue
     printf("\r\nPress 'ENTER' to start.\r\n");
     while (true) {
@@ -1479,6 +1526,7 @@ int main() {
     }
 
     printf("\n");
+
     printf("Initializing SD card ...\n");
     set_sd_card_pins(0, 4, 6, 7);
     sd_init_driver();
@@ -1490,7 +1538,7 @@ int main() {
     }
     else {
         unsigned char *config_file = config_menu();
-        
+
         printf("\n");
         g_config = &config;
         printf("Reading Configuration ...\n");
@@ -1500,7 +1548,7 @@ int main() {
 
         free(config_file);
 
-        setup_config();    
+        setup_config();
 
         printf("\n");
         printf("Reading ROMs ...\n");
@@ -1516,7 +1564,7 @@ int main() {
         printf("Loading ROM failed!\n");
         while(true) {}
     }
-    
+
 //    for(uint8_t i = START_DELAY; i > 0; i--) {
 //        printf("Starting in %d \n", i);
 //        sleep_ms(1000);
@@ -1587,9 +1635,27 @@ int main() {
 #endif
     start = get_absolute_time();
 
+    //uint8_t sound_toggle = 0;
+    //int cnt = 0;
     while (running) {
         step6502();
         poll_keypress(0);
+/*
+        if (freq == 0) {
+            if (sound_toggle == 1) {
+                sound_toggle = 0;
+                gpio_put(SOUND_PIN, sound_toggle);
+            }
+        }
+        else {
+            gpio_put(SOUND_PIN, sound_toggle);
+            if (cnt >= freq) {
+                sound_toggle = sound_toggle?0:1;
+                cnt = 0;
+            }
+            cnt++;
+        }
+*/
     }
 
     free_i2c(g_handle);
