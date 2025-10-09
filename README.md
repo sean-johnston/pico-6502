@@ -493,11 +493,20 @@ Any kind of wires will do, depending on how you are hooking them up.
 
 To do sound, we need an amplifier and speaker.
 
+If you want to but one completely assembled, you can get this on Amazon:
+
 <img src="images/amp.png" width = "400px" >
 
 WWZMDiB LM386 Mono Audio Amplifier 200 Times Circuit Design with 10K Adjustable Resistor 5~12V
 
 https://www.amazon.com/dp/B0CCJ5G8YR?ref=ppx_yo2ov_dt_b_fed_asin_title
+
+If you want to build the amp yourself, here is a schematic:
+
+<img src="images/amp-circuit.png" width = "400px" >
+
+<br>
+Speaker can bought on Amazon here:
 
 2 Pack 2" 8ohm 3w Full Range Speakers, DIY Speaker Kit for Replacement Speakers, Complicable with Arduino Speaker
 
