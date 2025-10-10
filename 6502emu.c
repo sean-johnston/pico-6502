@@ -24,6 +24,8 @@
 #include "6502.c"
 #include "6522.h"
 
+#define VERSION "1.2.0"
+
 //#define VIA_BASE_ADDRESS UINT16_C(0xD000)
 //#define VIA UINT16_C(0xD000)
 
@@ -1505,9 +1507,14 @@ int main() {
     vreg_set_voltage(VREG_VOLTAGE_1_15);
     set_sys_clock_khz(280000, true);
 #endif
+
     stdio_init_all();
 
     sleep_ms(2000);
+    printf("Version: %s\n",VERSION);
+#ifdef OVERCLOCK
+    printf("Overclocked\n");
+#endif
 
     FATFS fs;
     FRESULT fr;
@@ -1635,27 +1642,9 @@ int main() {
 #endif
     start = get_absolute_time();
 
-    //uint8_t sound_toggle = 0;
-    //int cnt = 0;
     while (running) {
         step6502();
         poll_keypress(0);
-/*
-        if (freq == 0) {
-            if (sound_toggle == 1) {
-                sound_toggle = 0;
-                gpio_put(SOUND_PIN, sound_toggle);
-            }
-        }
-        else {
-            gpio_put(SOUND_PIN, sound_toggle);
-            if (cnt >= freq) {
-                sound_toggle = sound_toggle?0:1;
-                cnt = 0;
-            }
-            cnt++;
-        }
-*/
     }
 
     free_i2c(g_handle);

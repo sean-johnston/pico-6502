@@ -32,7 +32,19 @@ This is a fork of the emulator that runs on a Raspberry Pi Pico, with additional
 
 * Copy the uf2 file to the Pi Pico
 
+### Pico 1 vs Pico 2
 
+The program will compile for both Pico 1 and Pico 2. If you compiled for one, and want to build for the other,
+you need to deleted **build** directory and rebuild.
+
+The Pico 2 requires the PICO_PLATFORM to be set to rp2350.
+
+export PICO_PLATFORM=rp2350
+
+The files for the SD card are built differently for the Pico 1 and Pico 2. This has to do with the real time clock.
+The pico 2 uses a different API for the real time clock. Since the program doesn't use the timestamp for the files,
+I stubbed out the get_fattime function to return 0. This allows the SD card module to work with both versions of
+the Pico.
 
 ## Features
 
