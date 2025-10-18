@@ -196,23 +196,37 @@ int DEBUG_IO = 0;
 #define PORT_B 1
 
 const uint CTS_PIN = 2;
-const uint SOUND_PIN = 28;
 int xon_xoff = 0;
 int32_t freq = 0;
+int32_t freq2 = 0;
+int32_t freq3 = 0;
 repeating_timer_t out_timer;
+repeating_timer_t out_timer2;
+repeating_timer_t out_timer3;
 bool has_timer = false;
+bool has_timer2 = false;
+bool has_timer3 = false;
 uint8_t sound_toggle = 0;
+uint8_t sound_toggle2 = 0;
+uint8_t sound_toggle3 = 0;
 
 bool timer_callback(repeating_timer_t *rt) {
     sound_toggle = sound_toggle?0:1;
-    gpio_put(SOUND_PIN, sound_toggle);
-
-//    static bool led_state = false; // Static variable to maintain state
-//    gpio_put(PICO_DEFAULT_LED_PIN, led_state); // Toggle the LED
-//    led_state = !led_state; // Invert the state for the next call
+    gpio_put(config.sound1_pin, sound_toggle);
     return true; // Return true to continue the timer
 }
 
+bool timer_callback2(repeating_timer_t *rt) {
+    sound_toggle2 = sound_toggle2?0:1;
+    gpio_put(config.sound2_pin, sound_toggle2);
+    return true; // Return true to continue the timer
+}
+
+bool timer_callback3(repeating_timer_t *rt) {
+    sound_toggle3 = sound_toggle3?0:1;
+    gpio_put(config.sound3_pin, sound_toggle3);
+    return true; // Return true to continue the timer
+}
 
 //***************************************************
 // Initialize the I/O board.
@@ -788,27 +802,87 @@ void write6502(uint16_t address, uint8_t value) {
 
     } else if (address == sound) {
 
-        freq = (freq & 0xff00) | value;
-        if (has_timer != 0) {
-            cancel_repeating_timer(&out_timer);
-            has_timer = false;
-        }
-        if (freq != 0) {
-            add_repeating_timer_us((uint32_t)(65536-freq)/2, timer_callback, 0, &out_timer);
-            has_timer = true;
+        if (config.sound1_pin != 0) {
+            freq = (freq & 0xff00) | value;
+            if (has_timer != 0) {
+                cancel_repeating_timer(&out_timer);
+                has_timer = false;
+            }
+            if (freq != 0) {
+                add_repeating_timer_us((uint32_t)(65536-freq)/2, timer_callback, 0, &out_timer);
+                has_timer = true;
+            }
         }
 
 
     } else if (address == sound+1) {
-        freq = (freq & 0x00ff) | (value << 8);
-        if (has_timer != 0) {
-            cancel_repeating_timer(&out_timer);
-            has_timer = false;
+        if (config.sound1_pin != 0) {
+            freq = (freq & 0x00ff) | (value << 8);
+            if (has_timer != 0) {
+                cancel_repeating_timer(&out_timer);
+                has_timer = false;
+            }
+            if (freq != 0) {
+                add_repeating_timer_us((uint32_t)(65536-freq)/2, timer_callback, 0, &out_timer);
+                has_timer = true;
+            }
         }
-        if (freq != 0) {
-            add_repeating_timer_us((uint32_t)(65536-freq)/2, timer_callback, 0, &out_timer);
-            has_timer = true;
+
+    } else if (address == sound+2) {
+
+        if (config.sound2_pin != 0) {
+            freq2 = (freq2 & 0xff00) | value;
+            if (has_timer2 != 0) {
+                cancel_repeating_timer(&out_timer2);
+                has_timer2 = false;
+            }
+            if (freq2 != 0) {
+                add_repeating_timer_us((uint32_t)(65536-freq2)/2, timer_callback2, 0, &out_timer2);
+                has_timer2 = true;
+            }
         }
+
+
+    } else if (address == sound+3) {
+        if (config.sound2_pin != 0) {
+            freq2 = (freq2 & 0x00ff) | (value << 8);
+            if (has_timer2 != 0) {
+                cancel_repeating_timer(&out_timer2);
+                has_timer2 = false;
+            }
+            if (freq2 != 0) {
+                add_repeating_timer_us((uint32_t)(65536-freq2)/2, timer_callback2, 0, &out_timer2);
+                has_timer2 = true;
+            }
+        }
+
+    } else if (address == sound+4) {
+
+        if (config.sound3_pin != 0) {
+            freq3 = (freq3 & 0xff00) | value;
+            if (has_timer3 != 0) {
+                cancel_repeating_timer(&out_timer3);
+                has_timer3 = false;
+            }
+            if (freq3 != 0) {
+                add_repeating_timer_us((uint32_t)(65536-freq3)/2, timer_callback3, 0, &out_timer3);
+                has_timer3 = true;
+            }
+        }
+
+    } else if (address == sound+5) {
+        if (config.sound3_pin != 0) {
+            freq3 = (freq3 & 0x00ff) | (value << 8);
+            if (has_timer3 != 0) {
+                cancel_repeating_timer(&out_timer3);
+                has_timer3 = false;
+            }
+            if (freq3 != 0) {
+                add_repeating_timer_us((uint32_t)(65536-freq3)/2, timer_callback3, 0, &out_timer3);
+                has_timer3 = true;
+            }
+        }
+
 
     // Setting the file mode
     } else if (address == file_mode) {
@@ -1415,9 +1489,23 @@ void setup_config(void) {
     gpio_set_dir(CTS_PIN   , GPIO_IN);
     gpio_pull_up(CTS_PIN);
 
-    gpio_init(SOUND_PIN);
-    gpio_set_dir(SOUND_PIN   , GPIO_OUT);
-    gpio_pull_up(SOUND_PIN);
+    if (config.sound1_pin != 0) {
+        gpio_init(config.sound1_pin);
+        gpio_set_dir(config.sound1_pin   , GPIO_OUT);
+        gpio_pull_up(config.sound1_pin);
+    }
+
+    if (config.sound2_pin != 0) {
+        gpio_init(config.sound2_pin);
+        gpio_set_dir(config.sound2_pin   , GPIO_OUT);
+        gpio_pull_up(config.sound2_pin);
+    }
+
+    if (config.sound3_pin != 0) {
+        gpio_init(config.sound3_pin);
+        gpio_set_dir(config.sound3_pin   , GPIO_OUT);
+        gpio_pull_up(config.sound3_pin);
+    }
 
     if (config.serial_flow == FLOW_CONTROL_AUTO) {
         printf("Flow Control\n");

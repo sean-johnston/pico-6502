@@ -71,6 +71,18 @@ LCD Installed
 * 0 = No (Default)
 * 1 = Yes
 
+#### SOUND1-PIN
+
+* Pin to use for sound 1. Default 28. Set to 0 to disable.
+
+#### SOUND2-PIN
+
+* Pin to use for sound 2. Default 27. Set to 0 to disable.
+
+#### SOUND3-PIN
+
+* Pin to use for sound 1. Default 26. Set to 0 to disable.
+
 #### IO-EMULATION=0
 
 I/O Emulation
@@ -271,12 +283,23 @@ Included are binary files for the following:
 * Hello World program
 * Echo (Echos keystrokes from the terminal)
 
-### Sound 
+### Sound
 
-You can connect an audio amplifier and speaker to GPIO pin 28 to get a tone. To play the note, put the value in location
-$F008 (low byte) and $F009 (High byte). The value is 65536 - microseconds for a pulse.
+You can connect an audio amplifier and speaker to GPIO pins to get a tone. To play the note, put the value in the
+following locations:
+
+* Voice 1 - $F008 (61448) (low byte) and $F009 (61449) (High byte). The value is 65536 - microseconds for a pulse.
+* Voice 2 - $F00A (61450) (low byte) and $F00B (61451) (High byte). The value is 65536 - microseconds for a pulse.
+* Voice 3 - $F00C (61452) (low byte) and $F00D (61453) (High byte). The value is 65536 - microseconds for a pulse.
 
 Example: A (440) is	63264 or 32 (LB) and 247 (HB)
+
+By default the pins are as follows:
+* Voice 1 - Pin 28
+* Voice 2 - Pin 27
+* Voice 3 - Pin 26
+
+The pin can be changed in the configuration file with SOUND1-PIN, SOUND2-PIN, and SOUND3-PIN
 
 ### Extended I/O
 

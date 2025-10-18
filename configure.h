@@ -17,6 +17,9 @@ struct config_t {
     uint8_t *out_map[256*MAP_SETS];      // Mapping for output characters
     uint8_t *in_map[256];         // Mapping for input characters
     uint8_t  show_output;         // Show output when reading configuration file (For debug)
+    uint8_t  sound1_pin;
+    uint8_t  sound2_pin;
+    uint8_t  sound3_pin;
 };
 
 #define IO_EMULATION_AUTO       0 // Auto detected. Tries to initialize the I/O

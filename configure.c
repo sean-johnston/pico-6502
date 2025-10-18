@@ -583,6 +583,16 @@ int read_config(unsigned char * config_file, struct config_t* config) {
         config->lcd_installed = atoi(data);
         printf("LCD-INSTALLED: %s\n", data);
 
+        data = get_attr(&fil,"SOUND1-PIN","28",ATTR_NORMAL,0);
+        config->sound1_pin = atoi(data);
+        printf("SOUND1-PIN: %s\n", data);
+        data = get_attr(&fil,"SOUND2-PIN","27",ATTR_NORMAL,0);
+        config->sound2_pin = atoi(data);
+        printf("SOUND2-PIN: %s\n", data);
+        data = get_attr(&fil,"SOUND3-PIN","26",ATTR_NORMAL,0);
+        config->sound3_pin = atoi(data);
+        printf("SOUND3-PIN: %s\n", data);
+
         // Get the I/O emulation mode
         data = get_attr(&fil,"IO-EMULATION","0",ATTR_NORMAL,0);
         printf("IO-EMULATION: %s\n", data);
