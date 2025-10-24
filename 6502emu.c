@@ -806,6 +806,7 @@ void write6502(uint16_t address, uint8_t value) {
             freq = (freq & 0xff00) | value;
             if (has_timer != 0) {
                 cancel_repeating_timer(&out_timer);
+                gpio_put(config.sound1_pin, 0);
                 has_timer = false;
             }
             if (freq != 0) {
@@ -820,6 +821,7 @@ void write6502(uint16_t address, uint8_t value) {
             freq = (freq & 0x00ff) | (value << 8);
             if (has_timer != 0) {
                 cancel_repeating_timer(&out_timer);
+                gpio_put(config.sound1_pin, 0);
                 has_timer = false;
             }
             if (freq != 0) {
@@ -834,6 +836,7 @@ void write6502(uint16_t address, uint8_t value) {
             freq2 = (freq2 & 0xff00) | value;
             if (has_timer2 != 0) {
                 cancel_repeating_timer(&out_timer2);
+                gpio_put(config.sound2_pin, 0);
                 has_timer2 = false;
             }
             if (freq2 != 0) {
@@ -848,6 +851,7 @@ void write6502(uint16_t address, uint8_t value) {
             freq2 = (freq2 & 0x00ff) | (value << 8);
             if (has_timer2 != 0) {
                 cancel_repeating_timer(&out_timer2);
+                gpio_put(config.sound2_pin, 0);
                 has_timer2 = false;
             }
             if (freq2 != 0) {
@@ -862,6 +866,7 @@ void write6502(uint16_t address, uint8_t value) {
             freq3 = (freq3 & 0xff00) | value;
             if (has_timer3 != 0) {
                 cancel_repeating_timer(&out_timer3);
+                gpio_put(config.sound3_pin, 0);
                 has_timer3 = false;
             }
             if (freq3 != 0) {
@@ -875,6 +880,7 @@ void write6502(uint16_t address, uint8_t value) {
             freq3 = (freq3 & 0x00ff) | (value << 8);
             if (has_timer3 != 0) {
                 cancel_repeating_timer(&out_timer3);
+                gpio_put(config.sound3_pin, 0);
                 has_timer3 = false;
             }
             if (freq3 != 0) {

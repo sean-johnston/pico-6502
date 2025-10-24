@@ -5,7 +5,7 @@
 #define ATTR_FIND_STARTING 1      // Key starts with the specified key value
 #define ATTR_FIND_NEXT     2      // Get the next key starting with the specified key value
 
-#define MAP_SETS           8
+#define MAP_SETS           10
 
 // Structure for the configuration
 struct config_t {
