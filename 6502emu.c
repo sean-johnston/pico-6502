@@ -200,12 +200,27 @@ int xon_xoff = 0;
 int32_t freq = 0;
 int32_t freq2 = 0;
 int32_t freq3 = 0;
+
+int32_t duration = 0;
+int32_t duration2 = 0;
+int32_t duration3 = 0;
+
 repeating_timer_t out_timer;
 repeating_timer_t out_timer2;
 repeating_timer_t out_timer3;
+
+repeating_timer_t out_one_shot_timer;
+repeating_timer_t out_one_shot_timer2;
+repeating_timer_t out_one_shot_timer3;
+
 bool has_timer = false;
 bool has_timer2 = false;
 bool has_timer3 = false;
+
+bool has_one_shot_timer = false;
+bool has_one_shot_timer2 = false;
+bool has_one_shot_timer3 = false;
+
 uint8_t sound_toggle = 0;
 uint8_t sound_toggle2 = 0;
 uint8_t sound_toggle3 = 0;
@@ -226,6 +241,40 @@ bool timer_callback3(repeating_timer_t *rt) {
     sound_toggle3 = sound_toggle3?0:1;
     gpio_put(config.sound3_pin, sound_toggle3);
     return true; // Return true to continue the timer
+}
+
+bool timer_one_shot_callback(repeating_timer_t *rt) {
+    if (has_timer != 0) {
+        cancel_repeating_timer(&out_timer);
+        gpio_put(config.sound1_pin, 0);
+        has_timer = false;
+    }
+    printf("duration 1 = 0\n");
+    has_one_shot_timer = false;
+    duration = 0;
+    return false; // Return true to continue the timer
+}
+
+bool timer_one_shot_callback2(repeating_timer_t *rt) {
+    if (has_timer2 != 0) {
+        cancel_repeating_timer(&out_timer2);
+        gpio_put(config.sound2_pin, 0);
+        has_timer2 = false;
+    }
+    has_one_shot_timer2 = false;
+    duration2 = 0;
+    return false; // Return true to continue the timer
+}
+
+bool timer_one_shot_callback3(repeating_timer_t *rt) {
+    if (has_timer3 != 0) {
+        cancel_repeating_timer(&out_timer3);
+        gpio_put(config.sound3_pin, 0);
+        has_timer3 = false;
+    }
+    has_one_shot_timer3 = false;
+    duration3 = 0;
+    return false; // Return true to continue the timer
 }
 
 //***************************************************
@@ -374,6 +423,42 @@ uint8_t read6502(uint16_t address) {
             ch = process_esc();
         }
         return (uint8_t) ch & 0xFF;
+
+    } else if (address == sound) { // Freq 1 low byte
+        return (uint8_t) freq & 0xFF;
+
+    } else if (address == sound+1) { // Freq 1 high byte
+        return (uint8_t) (freq >> 8 ) & 0xFF;
+
+    } else if (address == sound+2) { // Freq 2 low byte
+        return (uint8_t) freq2 & 0xFF;
+
+    } else if (address == sound+3) { // Freq 2 high byte
+        return (uint8_t) (freq2 >> 8 ) & 0xFF;
+
+    } else if (address == sound+4) { // Freq 3 low byte
+        return (uint8_t) freq3 & 0xFF;
+
+    } else if (address == sound+5) { // Freq 3 high byte
+        return (uint8_t) (freq3 >> 8 ) & 0xFF;
+
+    } else if (address == sound+6) { // Duration 1 low byte
+        return (uint8_t) duration & 0xFF;
+
+    } else if (address == sound+7) { // Duration 1 high byte
+        return (uint8_t) (duration >> 8 ) & 0xFF;
+
+    } else if (address == sound+8) { // Duration 2 low byte
+        return (uint8_t) duration2 & 0xFF;
+
+    } else if (address == sound+9) { // Duration 2 high byte
+        return (uint8_t) (duration2 >> 8 ) & 0xFF;
+
+    } else if (address == sound+10) { // Duration 3 low byte
+        return (uint8_t) duration3 & 0xFF;
+
+    } else if (address == sound+11) { // Duration 3 high byte
+        return (uint8_t) (duration3 >> 8 ) & 0xFF;
 
     // Load the next byte of data
     } else if (address == file_load_data) {
@@ -800,7 +885,7 @@ void write6502(uint16_t address, uint8_t value) {
             }
         }
 
-    } else if (address == sound) {
+    } else if (address == sound) { // Freq 1 low byte
 
         if (config.sound1_pin != 0) {
             freq = (freq & 0xff00) | value;
@@ -816,7 +901,7 @@ void write6502(uint16_t address, uint8_t value) {
         }
 
 
-    } else if (address == sound+1) {
+    } else if (address == sound+1) { // Freq 1 high byte
         if (config.sound1_pin != 0) {
             freq = (freq & 0x00ff) | (value << 8);
             if (has_timer != 0) {
@@ -830,7 +915,7 @@ void write6502(uint16_t address, uint8_t value) {
             }
         }
 
-    } else if (address == sound+2) {
+    } else if (address == sound+2) { // Freq 2 low byte
 
         if (config.sound2_pin != 0) {
             freq2 = (freq2 & 0xff00) | value;
@@ -846,7 +931,7 @@ void write6502(uint16_t address, uint8_t value) {
         }
 
 
-    } else if (address == sound+3) {
+    } else if (address == sound+3) { // Freq 2 high byte
         if (config.sound2_pin != 0) {
             freq2 = (freq2 & 0x00ff) | (value << 8);
             if (has_timer2 != 0) {
@@ -860,7 +945,7 @@ void write6502(uint16_t address, uint8_t value) {
             }
         }
 
-    } else if (address == sound+4) {
+    } else if (address == sound+4) { // Freq 3 low byte
 
         if (config.sound3_pin != 0) {
             freq3 = (freq3 & 0xff00) | value;
@@ -875,7 +960,7 @@ void write6502(uint16_t address, uint8_t value) {
             }
         }
 
-    } else if (address == sound+5) {
+    } else if (address == sound+5) { // Freq 3 high byte
         if (config.sound3_pin != 0) {
             freq3 = (freq3 & 0x00ff) | (value << 8);
             if (has_timer3 != 0) {
@@ -889,6 +974,85 @@ void write6502(uint16_t address, uint8_t value) {
             }
         }
 
+    } else if (address == sound+6) { // Duration 1 low byte
+        if (config.sound1_pin != 0) {
+            duration = (duration & 0xff00) | value;
+            if (has_one_shot_timer != 0) {
+                cancel_repeating_timer(&out_one_shot_timer);
+                has_one_shot_timer = false;
+            }
+            printf("%i - Duration 1 low byte\n", duration);
+            //if (duration != 0) {
+            //    add_repeating_timer_us((uint32_t)duration*1000, timer_one_shot_callback, 0, &out_one_shot_timer);
+            //    has_timer = true;
+            //}
+        }
+
+    } else if (address == sound+7) { // Duration 1 high byte
+        if (config.sound1_pin != 0) {
+            duration = (duration & 0x00ff) | (value << 8);
+            if (has_one_shot_timer != 0) {
+                cancel_repeating_timer(&out_one_shot_timer);
+                has_one_shot_timer = false;
+            }
+            printf("%i - Duration 1 high byte\n", duration);
+            if (duration != 0) {
+                add_repeating_timer_us((uint32_t)duration*1000, timer_one_shot_callback, 0, &out_one_shot_timer);
+                has_one_shot_timer = true;
+            }
+        }
+
+    } else if (address == sound+8) { // Duration 2 low byte
+        if (config.sound2_pin != 0) {
+            duration2 = (duration2 & 0xff00) | value;
+            if (has_one_shot_timer2 != 0) {
+                cancel_repeating_timer(&out_one_shot_timer2);
+                has_one_shot_timer2 = false;
+            }
+            //if (duration2 != 0) {
+            //    add_repeating_timer_us((uint32_t)duration2*1000, timer_one_shot_callback2, 0, &out_one_shot_timer2);
+            //    has_one_shot_timer2 = true;
+            //}
+        }
+
+    } else if (address == sound+9) { // Duration 2 high byte
+        if (config.sound2_pin != 0) {
+            duration2 = (duration2 & 0x00ff) | (value << 8);
+            if (has_one_shot_timer2 != 0) {
+                cancel_repeating_timer(&out_one_shot_timer2);
+                has_one_shot_timer2 = false;
+            }
+            if (duration2 != 0) {
+                add_repeating_timer_us((uint32_t)duration2*1000, timer_one_shot_callback2, 0, &out_one_shot_timer2);
+                has_one_shot_timer2 = true;
+            }
+        }
+
+    } else if (address == sound+10) { // Duration 3 low byte
+        if (config.sound3_pin != 0) {
+            duration3 = (duration3 & 0xff00) | value;
+            if (has_one_shot_timer3 != 0) {
+                cancel_repeating_timer(&out_one_shot_timer3);
+                has_one_shot_timer3 = false;
+            }
+            //if (duration2 != 0) {
+            //    add_repeating_timer_us((uint32_t)duration3*1000, timer_one_shot_callback3, 0, &out_one_shot_timer3);
+            //    has_one_shot_timer3 = true;
+            //}
+        }
+
+    } else if (address == sound+11) { // Duration 3 high byte
+        if (config.sound3_pin != 0) {
+            duration3 = (duration3 & 0x00ff) | (value << 8);
+            if (has_one_shot_timer3 != 0) {
+                cancel_repeating_timer(&out_one_shot_timer3);
+                has_one_shot_timer3 = false;
+            }
+            if (duration3 != 0) {
+                add_repeating_timer_us((uint32_t)duration3*1000, timer_one_shot_callback3, 0, &out_one_shot_timer3);
+                has_one_shot_timer3 = true;
+            }
+        }
 
     // Setting the file mode
     } else if (address == file_mode) {
@@ -1687,6 +1851,8 @@ int main() {
     chrin           = io_location + 4; // 0xf004;
     file_load_data  = io_location + 5; // 0xf005;
     debug_io_enable = io_location + 6; // 0xf006;
+    lcd_state       = io_location + 7; // 0xf007
+    sound           = io_location + 8; // 9xf008;
 
     printf("ROM Start   : %04x (%i)\n",rom_start, rom_start);
     printf("ROM Length  : %04x (%i)\n",rom_length, rom_length);

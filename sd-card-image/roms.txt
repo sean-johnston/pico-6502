@@ -1,7 +1,7 @@
 * ROM desc.    ,ROM file       ,ROM start    , VIA ,I/O 
 Taliforth      ,forth.bin      ,$8000        ,$D000,$F000
 WOZMon.        ,wozmon.bin     ,$fe00        ,$D000,$F000
-Microsoft Basic,msbasic.bin    ,$8000        ,$D000,$F000
+Microsoft Basic,msbasic.bin    ,$a000        ,$D000,$d100
 Hello World    ,hello-world.bin,$ff00        ,$D000,$F000
 Echo           ,echo.bin       ,$ff00        ,$D000,$F000
 LCD Test       ,lcd.bin        ,$fe00        ,$D000,$F000
