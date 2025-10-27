@@ -266,7 +266,7 @@ void load_map(FIL *fil, char *mkey, uint8_t **map, uint8_t show_output) {
         // If it is unicode
         if (data[0] == 'U' || data[0] == 'u') {
             // Convert number from a hex number
-            uint16_t num = strtol(data+1, &endptr, 16);
+            uint32_t num = strtol(data+1, &endptr, 16);
             // Translate the UTF-8
             memcpy(mapping,translate_utf_8(num, &cnt),8);
         }
