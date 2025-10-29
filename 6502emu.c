@@ -24,7 +24,7 @@
 #include "6502.c"
 #include "6522.h"
 
-#define VERSION "1.2.0"
+#define VERSION "1.4.0"
 
 //#define VIA_BASE_ADDRESS UINT16_C(0xD000)
 //#define VIA UINT16_C(0xD000)
